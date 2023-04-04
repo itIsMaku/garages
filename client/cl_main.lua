@@ -107,6 +107,7 @@ end)
 
 RegisterNetEvent('garages:receiveVehicleDetails',
     function(garageId, vehicles, fetchedCategories, job, isManagement, grades)
+        print(isManagement)
         cachedVehicles = vehicles
         print(json.encode(grades))
         cachedJobGrades = grades

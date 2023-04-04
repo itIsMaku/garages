@@ -2,7 +2,11 @@ RegisterCommand('addGarage', function(source, args, raw)
     if source == 0 then
         return
     end
-    -- @TODO: check if player is admin
+    if not isPlayerAdmin(source) then
+        TriggerClientEvent('chat:addMessage', source,
+            'Vozidla ^7» ^1Na toto nemáš dostatečná oprávnění^0')
+        return
+    end
     if #args ~= 3 then
         TriggerClientEvent('chat:addMessage', source,
             'Garáže ^7» ^1Použití: ^0/addGarage <id> <display_name>  <blip>^0')
@@ -48,7 +52,11 @@ RegisterCommand('deleteGarage', function(source, args, raw)
     if source == 0 then
         return
     end
-    -- @TODO: check if player is admin
+    if not isPlayerAdmin(source) then
+        TriggerClientEvent('chat:addMessage', source,
+            'Vozidla ^7» ^1Na toto nemáš dostatečná oprávnění^0')
+        return
+    end
     if #args ~= 1 then
         TriggerClientEvent('chat:addMessage', source,
             'Garáže ^7» ^1Použití: ^0/deleteGarage <id>^0')
@@ -69,7 +77,11 @@ RegisterCommand('deleteGarage', function(source, args, raw)
 end)
 
 RegisterCommand('garages', function(source)
-    -- @TODO: check if player is admin
+    if not isPlayerAdmin(source) then
+        TriggerClientEvent('chat:addMessage', source,
+            'Vozidla ^7» ^1Na toto nemáš dostatečná oprávnění^0')
+        return
+    end
     TriggerClientEvent('chat:addMessage', source, 'Garáže ^7» ^3Seznam garáží:^0')
     -- jo posilam tady nekolik client eventu ale bohuzel mi v chatu nejde newline char \n abych to dal do jednoho a je to jen admin command lol
     for _, garage in pairs(Garages) do
@@ -78,7 +90,14 @@ RegisterCommand('garages', function(source)
 end)
 
 RegisterCommand('teleportGarage', function(source, args)
-    -- @TODO: check if player is admin
+    if not isPlayerAdmin(source) then
+        TriggerClientEvent('chat:addMessage', source,
+            'Vozidla ^7» ^1Na toto nemáš dostatečná oprávnění^0')
+        return
+    end
+    if source == 0 then
+        return
+    end
     if #args ~= 1 then
         TriggerClientEvent('chat:addMessage', source,
             'Garáže ^7» ^1Použití: ^0/teleportGarage <id>^0')
@@ -98,7 +117,11 @@ RegisterCommand('teleportGarage', function(source, args)
 end)
 
 RegisterCommand('giveVehicle', function(source, args, raw)
-    -- @TODO: check if player is admin
+    if not isPlayerAdmin(source) then
+        TriggerClientEvent('chat:addMessage', source,
+            'Vozidla ^7» ^1Na toto nemáš dostatečná oprávnění^0')
+        return
+    end
     if #args ~= 4 then
         TriggerClientEvent('chat:addMessage', source,
             'Vozidla ^7» ^1Použití: ^0/giveVehicle <target> <model> <plate> <job>^0')
@@ -136,4 +159,53 @@ RegisterCommand('giveVehicle', function(source, args, raw)
                     'Vozidla ^7» ^1Nastala chyba při přidávání vozidla^0')
             end
         end)
+end)
+
+RegisterCommand('vehicleToSociety', function(source, args)
+    if source == 0 then
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(GetPlayerPed(source))
+    if vehicle == nil or not DoesEntityExist(vehicle) then
+        TriggerClientEvent('chat:addMessage', source, 'Garáže ^7» ^1Musíš být ve vozidle^0')
+        return
+    end
+    local player = esx.GetPlayerFromId(source)
+    local plate = GetVehicleNumberPlateText(vehicle)
+    plate = string.gsub(plate, '%s+', '')
+    local job = player.job.name
+    local minimalManagementGrade = getMinimalManagementGrade(job)
+    if minimalManagementGrade == nil then -- k tomuhle by nikdy nemělo dojít, ale radši to tu nechám pro jistotu :D
+        TriggerClientEvent('chat:addMessage', source,
+            'Garáže ^7» ^1Tento job nemá garáž nebo nastavenou pozici pro správu^0')
+        return
+    end
+    print('minimalManagementGrade: ' .. minimalManagementGrade)
+    print('player.job.grade: ' .. player.job.grade)
+    if player.job.grade < minimalManagementGrade then
+        TriggerClientEvent('chat:addMessage', source,
+            'Garáže ^7» ^1Pro přepsání vozidla na firmu musíš mít povolené spravování firemní garáže na tvé pozici^0')
+        return
+    end
+    local row = MySQL.Sync.execute(
+        'UPDATE users_vehicles SET job = @job WHERE plate = @plate',
+        {
+            ['@job'] = job,
+            ['@plate'] = plate
+        }
+    )
+    if row then
+        if row < 1 then
+            TriggerClientEvent('chat:addMessage', source,
+                'Garáže ^7» ^1Toto vozidlo není tvé^0')
+            return
+        else
+            TriggerClientEvent('chat:addMessage', source,
+                'Garáže ^7» ^2Vozidlo ^0' .. plate .. '^2 bylo přepsáno na firmu^0')
+        end
+    else
+        TriggerClientEvent('chat:addMessage', source,
+            'Garáže ^7» ^1Nastala chyba při přepisování vozidla na firmu^0')
+    end
 end)

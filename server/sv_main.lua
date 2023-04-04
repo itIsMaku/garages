@@ -109,12 +109,7 @@ RegisterNetEvent('garages:requestVehicleDetails', function(garageId)
             ['@owner'] = player.identifier,
         }
     )
-    local minimalManagementGrade = MySQL.Sync.fetchScalar(
-            'SELECT grade FROM garages_jobs WHERE job = @job',
-            {
-                ['@job'] = job,
-            }
-        ) or 0
+    local minimalManagementGrade = getMinimalManagementGrade(job)
     local receivingVehicles = {}
     for _, vehicle in each(vehicles) do
         vehicle.data = json.decode(vehicle.data)
@@ -352,6 +347,12 @@ function pay(source, money)
     end
 end
 
+function isPlayerAdmin(source)
+    if source == 0 then return true end
+    local player = esx.GetPlayerFromId(source)
+    return player.getGroup() == 'admin' or player.getGroup() == 'superadmin'
+end
+
 exports('saveVehicleProperties', function(plate, data)
     MySQL.Async.execute(
         'UPDATE users_vehicles SET data = @data WHERE plate = @plate',
@@ -361,3 +362,12 @@ exports('saveVehicleProperties', function(plate, data)
         }
     )
 end)
+
+function getMinimalManagementGrade(job)
+    return MySQL.Sync.fetchScalar(
+            'SELECT grade FROM garages_jobs WHERE job = @job',
+            {
+                ['@job'] = job,
+            }
+        ) or 0
+end
