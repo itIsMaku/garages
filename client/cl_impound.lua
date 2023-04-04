@@ -19,7 +19,6 @@ Citizen.CreateThread(function()
             width = v.zone_radius.width,
             height = v.zone_radius.height,
             heading = v.coords.w,
-            debugPoly = true,
             useZ = true
         })
     end
@@ -34,6 +33,11 @@ AddEventHandler('polyZone:enteredZone', function(zoneName)
     Citizen.CreateThread(function()
         while currentImpound == impound do
             Citizen.Wait(0)
+            local coords = Impounds[impound].coords
+            local zone_radius = Impounds[impound].zone_radius
+            esx.ShowHelpNotification('~INPUT_CONTEXT~ <font face="OpenSans-SemiBold">Odtahovka</font>')
+            DrawMarker(43, coords.x, coords.y, coords.z - 3.0, 0, 0, 0, 0, 0, coords.w, zone_radius.height,
+                zone_radius.width, 5.0, 0, 0, 255, 100)
             if IsControlJustPressed(0, 38) then
                 openImpoundMenu()
             end

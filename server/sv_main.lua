@@ -351,3 +351,13 @@ function pay(source, money)
         return true
     end
 end
+
+exports('saveVehicleProperties', function(plate, data)
+    MySQL.Async.execute(
+        'UPDATE users_vehicles SET data = @data WHERE plate = @plate',
+        {
+            ['@data'] = json.encode(vehicleData),
+            ['@plate'] = plate
+        }
+    )
+end)

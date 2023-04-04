@@ -68,6 +68,14 @@ AddEventHandler('polyZone:enteredZone', function(zoneName, point)
     Citizen.CreateThread(function()
         while inGarage == garageId do
             Citizen.Wait(0)
+            local coords = Garages[garageId].coords
+            local zone_radius = Garages[garageId].zone_radius
+            local rgb = { r = 0, g = 255, b = 0 }
+            if IsPedInAnyVehicle(PlayerPedId()) then
+                rgb = { r = 255, b = 0, g = 0 }
+            end
+            DrawMarker(43, coords.x, coords.y, coords.z - 3.0, 0, 0, 0, 0, 0, coords.w, zone_radius.height,
+                zone_radius.width, 5.0, rgb.r, rgb.g, rgb.b, 100)
             esx.ShowHelpNotification('~INPUT_CONTEXT~ <font face="OpenSans-SemiBold">Garáže</font>')
             if IsControlJustPressed(0, 38) then
                 requestGarageMenu(garageId)
