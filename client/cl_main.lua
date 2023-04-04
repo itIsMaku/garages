@@ -39,15 +39,15 @@ end)
 
 function addGarage(garage)
     if garage.blip then
-        exports.main:createNewBlip({
-            id = 'garage_' .. garage.id,
-            coords = garage.coords,
-            sprite = 357,
-            colour = 4,
-            scale = 0.8,
-            display = 4,
-            text = 'Garáž'
-        })
+        local blip = AddBlipForCoord(garage.coords)
+        SetBlipSprite(blip, 357)
+        SetBlipDisplay(blip, 4)
+        SetBlipScale(blip, 0.8)
+        SetBlipColour(blip, 4)
+        SetBlipAsShortRange(blip, true)
+        BeginTextCommandSetBlipName('STRING')
+        AddTextComponentString('<font face="OpenSans-SemiBold">Garáž</font>')
+        EndTextCommandSetBlipName(blip)
     end
     TriggerEvent('polyZone:createZone', 'garage_' .. garage.id, 'box', {
         coords = garage.coords,
@@ -74,7 +74,6 @@ AddEventHandler('polyZone:enteredZone', function(zoneName, point)
             end
         end
     end)
-    print('entered garage ' .. garageId)
 end)
 
 AddEventHandler('polyZone:leftZone', function(zoneName, point)
@@ -85,16 +84,16 @@ AddEventHandler('polyZone:leftZone', function(zoneName, point)
     local garage = Garages[garageId]
     inGarage = nil
     esx.UI.Menu.CloseAll()
-    print('left garage ' .. garageId)
 end)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
     esx.UI.Menu.CloseAll()
-    print('Removing', json.encode(Garages))
     for _, garage in pairs(Garages) do
-        print('Removing garage ' .. garage.id)
         TriggerEvent('polyZone:removeZone', 'garage_' .. garage.id)
+    end
+    for id, _ in pairs(Impounds) do
+        TriggerEvent('polyZone:removeZone', 'impound_' .. id)
     end
 end)
 
@@ -198,23 +197,11 @@ function selectVehicle(vehicle, garageId)
 end
 
 function spawnForCash(title, plate, garageId, amount)
-    esx.UI.Menu.Open('default', 'garages', 'vehicle_out', {
-        title = title,
-        align = 'top-right',
-        elements = {
-            { label = 'Zrušit',  action = 'cancel' },
-            { label = 'Potvrdit', action = 'spawn' }
-        }
-    }, function(data, menu)
-        menu.close()
-        if data.current.action == 'cancel' then
-            return
+    openConfirmationMenu(title, function(state)
+        if state then
+            TriggerServerEvent('garages:spawnVehicle', plate, garageId, amount)
         end
-        esx.UI.Menu.CloseAll()
-        TriggerServerEvent('garages:spawnVehicle', plate, garageId, amount)
-    end, function(data, menu)
-        menu.close()
-    end)
+    end, true, true)
 end
 
 function spawnVehicle(vehicle, garageId)
@@ -225,7 +212,7 @@ end
 function storeVehicle(garageId)
     local vehicle = GetVehiclePedIsIn(PlayerPedId())
     local plate = GetVehicleNumberPlateText(vehicle)
-    plate = string.gsub(plate, "%s+", "")
+    plate = string.gsub(plate, '%s+', '')
     TriggerServerEvent('garages:storeVehicle', garageId, plate, NetworkGetNetworkIdFromEntity(vehicle),
         esx.Game.GetVehicleProperties(vehicle))
 end

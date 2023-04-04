@@ -103,7 +103,7 @@ RegisterNetEvent('garages:requestVehicleDetails', function(garageId)
     --     )
     -- end
     vehicles = MySQL.Sync.fetchAll(
-        'SELECT plate, model, garage, stored, impound, type, category, data, job FROM users_vehicles WHERE job = @job OR owner = @owner',
+        'SELECT plate, model, garage, stored, impound, type, category, data, job, impound_data FROM users_vehicles WHERE job = @job OR owner = @owner',
         {
             ['@job'] = job,
             ['@owner'] = player.identifier,
@@ -123,6 +123,7 @@ RegisterNetEvent('garages:requestVehicleDetails', function(garageId)
         }
         vehicle.stored = vehicle.stored == 1
         vehicle.impound = vehicle.impound == 1
+        vehicle.impound_data = vehicle.impound_data and json.decode(vehicle.impound_data) or nil
         receivingVehicles[vehicle.plate] = vehicle
     end
     local categories = {}
@@ -139,22 +140,12 @@ RegisterNetEvent('garages:requestVehicleDetails', function(garageId)
 end)
 
 RegisterNetEvent('garages:spawnVehicle', function(plate, garageId, money)
+    local source = source
     if money then
-        local source = source
-        local player = esx.GetPlayerFromId(source)
-        if player.getMoney() < money then
-            if player.getAccount('bank').money < money then
-                player.showNotification('Nemáš dostatek peněz na bankovním účtě ani v kapse.', 'red')
-                return
-            end
-            player.removeAccountMoney('bank', money)
-            player.showNotification('Zaplatil jsi ' .. money .. '$ z účtu za vytáhnutí.')
-        else
-            player.removeMoney(money)
-            player.showNotification('Zaplatil jsi ' .. money .. '$ z kapsy za vytáhnutí.')
+        if not pay(source, money) then
+            return
         end
     end
-    local source = source
     local vehicle = MySQL.single.await(
         'SELECT * FROM users_vehicles WHERE plate = @plate',
         {
@@ -204,13 +195,13 @@ RegisterNetEvent('garages:storeVehicle', function(garageId, plate, vehicle, vehi
         }
     )
     if vehicleRow == nil then
-        esxPlayer.showNotification('Toto vozidlo není tvé ani tvé firmy.', 'red')
+        esxPlayer.showNotification('Toto vozidlo není tvé ani tvé firmy.', 'error')
         return
     end
     local canStore = (vehicleRow.job == nil and vehicleRow.owner == esxPlayer.identifier) or
         (vehicleRow.job ~= nil and esxPlayer.job.name == vehicleRow.job)
     if not canStore then
-        esxPlayer.showNotification('Toto vozidlo není tvé ani tvé firmy.', 'red')
+        esxPlayer.showNotification('Toto vozidlo není tvé ani tvé firmy.', 'error')
         return
     end
     print(vehicleRow.job)
@@ -230,7 +221,7 @@ RegisterNetEvent('garages:storeVehicle', function(garageId, plate, vehicle, vehi
         DeleteEntity(vehicle)
         esxPlayer.showNotification('Vozidlo bylo úspěšně uloženo.', 'green')
     else
-        esxPlayer.showNotification('Něco se pokazilo při ukládání vozidla.', 'red')
+        esxPlayer.showNotification('Něco se pokazilo při ukládání vozidla.', 'error')
     end
 end)
 
@@ -343,3 +334,20 @@ RegisterNetEvent('garages:updateMinimumManagementGrade', function(grade)
         })
     end
 end)
+
+function pay(source, money)
+    local player = esx.GetPlayerFromId(source)
+    if player.getMoney() < money then
+        if player.getAccount('bank').money < money then
+            player.showNotification('Nemáš dostatek peněz na bankovním účtě ani v kapse.', 'error')
+            return false
+        end
+        player.removeAccountMoney('bank', money)
+        player.showNotification('Zaplatil jsi ' .. money .. '$ z účtu za vytáhnutí.')
+        return true
+    else
+        player.removeMoney(money)
+        player.showNotification('Zaplatil jsi ' .. money .. '$ z kapsy za vytáhnutí.')
+        return true
+    end
+end

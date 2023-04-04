@@ -3,19 +3,12 @@ function requestGarageMenu(garageId)
     print('requesting garage menu for ' .. garageId)
     if IsPedInAnyVehicle(PlayerPedId()) then
         print('player is in vehicle')
-        esx.UI.Menu.Open('default', 'garages', 'vehstore', {
-            title = 'Uložit vozidlo?',
-            align = 'top-right',
-            elements = {
-                { label = 'Potvrdit', action = 'store' }
-            }
-        }, function(data, menu)
-            print('storing vehicle')
-            storeVehicle(garageId)
-            menu.close()
-        end, function(data, menu)
-            menu.close()
-        end)
+        openConfirmationMenu('Uložit vozidlo?', function(state)
+            if state then
+                print('storing vehicle')
+                storeVehicle(garageId)
+            end
+        end, false, false)
         return
     end
     -- if garage.job ~= nil then
@@ -215,13 +208,13 @@ function openCreateCategoryMenu(garageId, initData)
             end, true)
         elseif action == 'create' then
             if initData.name == nil then
-                esx.ShowNotification('Musíš zadat název kategorie!', 'red')
+                esx.ShowNotification('Musíš zadat název kategorie!', 'error')
                 return
             end
             local category = cachedCategories[initData.name]
             print('^4', json.encode(category), initData.job, '^0')
             if category ~= nil and category.job == initData.job then
-                esx.ShowNotification('Kategorie s tímto názvem již existuje!', 'red')
+                esx.ShowNotification('Kategorie s tímto názvem již existuje!', 'error')
                 return
             end
             esx.ShowNotification('Kategorie byla vytvořena!', 'green')
@@ -363,6 +356,39 @@ function openVehicleEditMenu(vehicle, garageId)
             TriggerServerEvent('garages:moveToPersonal', vehicle)
             esx.UI.Menu.CloseAll()
         end
+    end, function(data, menu)
+        menu.close()
+    end)
+end
+
+function openConfirmationMenu(title, callback, closeAll, showCancel, translation)
+    print('openConfirmationMenu', title, callback, closeAll, showCancel, translation)
+    local elements = {}
+    local translation = translation or { cancel = 'Zrušit', confirm = 'Potvrdit' }
+    if showCancel then
+        table.insert(elements, {
+            label = translation.cancel,
+            action = 'cancel'
+        })
+    end
+    table.insert(elements, {
+        label = translation.confirm,
+        action = 'confirm'
+    })
+    esx.UI.Menu.Open('default', 'garages', 'confirmation', {
+        title = title,
+        align = 'top-right',
+        elements = elements
+    }, function(data, menu)
+        menu.close()
+        if data.current.action == 'cancel' then
+            callback(false)
+            return
+        end
+        if closeAll then
+            esx.UI.Menu.CloseAll()
+        end
+        callback(true)
     end, function(data, menu)
         menu.close()
     end)
