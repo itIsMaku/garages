@@ -15,8 +15,9 @@ RegisterCommand('addGarage', function(source, args, raw)
     local id = args[1]
     local displayName = args[2]
     local blip = args[3] == 'true' and 1 or 0
-    local coords = GetEntityCoords(GetPlayerPed(source))
-    local heading = GetEntityHeading(GetPlayerPed(source))
+    local playerPed = GetPlayerPed(source)
+    local coords = GetEntityCoords(playerPed)
+    local heading = GetEntityHeading(playerPed)
     local garage = {
         id = id,
         coords = vector4(coords.x, coords.y, coords.z, heading),
@@ -111,8 +112,9 @@ RegisterCommand('teleportGarage', function(source, args)
         return
     end
     local coords = garage.coords
-    SetEntityCoords(GetPlayerPed(source), coords.x, coords.y, coords.z)
-    SetEntityHeading(GetPlayerPed(source), coords.w)
+    local playerPed = GetPlayerPed(source)
+    SetEntityCoords(playerPed, coords.x, coords.y, coords.z)
+    SetEntityHeading(playerPed, coords.w)
     TriggerClientEvent('chat:addMessage', source, 'Garáže ^7» ^3Teleportuji...^0')
 end)
 

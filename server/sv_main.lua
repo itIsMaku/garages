@@ -71,17 +71,17 @@ MySQL.ready(function()
 end)
 
 RegisterNetEvent('garages:load', function()
-    local source = source
+    local Source = source
     while not loaded do
         print('^2[garages] ^5Waiting for garages to load...^0')
         Wait(2000)
     end
-    TriggerClientEvent('garages:loaded', source, Garages)
+    TriggerClientEvent('garages:loaded', Source, Garages)
 end)
 
 RegisterNetEvent('garages:requestVehicleDetails', function(garageId)
-    local source = source
-    local player = esx.GetPlayerFromId(source)
+    local Source = source
+    local player = esx.GetPlayerFromId(Source)
     local job = player.job.name
     local vehicles = {}
     -- if job == nil then
@@ -130,14 +130,14 @@ RegisterNetEvent('garages:requestVehicleDetails', function(garageId)
     if isManagement then
         grades = esx.Jobs[job].grades or {}
     end
-    TriggerClientEvent('garages:receiveVehicleDetails', source, garageId, receivingVehicles, categories, job,
+    TriggerClientEvent('garages:receiveVehicleDetails', Source, garageId, receivingVehicles, categories, job,
         isManagement, grades)
 end)
 
 RegisterNetEvent('garages:spawnVehicle', function(plate, garageId, money)
-    local source = source
+    local Source = source
     if money then
-        if not pay(source, money) then
+        if not pay(Source, money) then
             return
         end
     end
@@ -147,8 +147,8 @@ RegisterNetEvent('garages:spawnVehicle', function(plate, garageId, money)
             ['@plate'] = plate,
         }
     )
-    TriggerClientEvent('garages:spawnVehicle', source, vehicle, garageId)
-    MySQL.Sync.execute('UPDATE users_vehicles SET stored = @stored WHERE plate = @plate', {
+    TriggerClientEvent('garages:spawnVehicle', Source, vehicle, garageId)
+    MySQL.Async.execute('UPDATE users_vehicles SET stored = @stored WHERE plate = @plate', {
         ['@stored'] = false,
         ['@plate'] = plate,
     })
@@ -180,9 +180,9 @@ function getJobCategories(job, grade, isManagement)
 end
 
 RegisterNetEvent('garages:storeVehicle', function(garageId, plate, vehicle, vehicleData)
-    local source = source
+    local Source = source
     vehicle = NetworkGetEntityFromNetworkId(vehicle)
-    local esxPlayer = esx.GetPlayerFromId(source)
+    local esxPlayer = esx.GetPlayerFromId(Source)
     local vehicleRow = MySQL.single.await(
         'SELECT owner, job FROM users_vehicles WHERE plate = @plate',
         {
@@ -221,7 +221,7 @@ RegisterNetEvent('garages:storeVehicle', function(garageId, plate, vehicle, vehi
 end)
 
 RegisterNetEvent('garages:createCategory', function(garage, data)
-    local source = source
+    local Source = source
     local restriction = {
         only_grade = data.only_grade,
         minimal_grade = data.minimal_grade
@@ -240,13 +240,13 @@ RegisterNetEvent('garages:createCategory', function(garage, data)
             job = data.job,
             restriction = restriction
         }
-        TriggerClientEvent('garages:createdCategory', source, garage)
+        TriggerClientEvent('garages:createdCategory', Source, garage)
     end
 end)
 
 RegisterNetEvent('garages:moveVehicle', function(plate, category)
     print(plate, category)
-    MySQL.Sync.execute(
+    MySQL.Async.execute(
         'UPDATE users_vehicles SET category = @category WHERE plate = @plate',
         {
             ['@category'] = category,
@@ -256,14 +256,14 @@ RegisterNetEvent('garages:moveVehicle', function(plate, category)
 end)
 
 RegisterNetEvent('garages:deleteCategory', function(category)
-    local source = source
+    local Source = source
     local vehicles = MySQL.Sync.fetchAll(
         'SELECT plate FROM users_vehicles WHERE category = @category',
         {
             ['@category'] = category
         }
     )
-    local job = esx.GetPlayerFromId(source).job.name
+    local job = esx.GetPlayerFromId(Source).job.name
     local i = 1
     local plate = nil
     local params = {}
@@ -296,12 +296,12 @@ RegisterNetEvent('garages:deleteCategory', function(category)
 end)
 
 RegisterNetEvent('garages:moveToPersonal', function(vehicle)
-    local source = source
-    local player = esx.GetPlayerFromId(source)
+    local Source = source
+    local player = esx.GetPlayerFromId(Source)
     if player.job.name ~= vehicle.job then
         return
     end
-    MySQL.Sync.execute(
+    MySQL.Async.execute(
         'UPDATE users_vehicles SET job = NULL, owner = @owner WHERE plate = @plate',
         {
             ['@owner'] = player.identifier,
@@ -311,8 +311,8 @@ RegisterNetEvent('garages:moveToPersonal', function(vehicle)
 end)
 
 RegisterNetEvent('garages:updateMinimumManagementGrade', function(grade)
-    local source = source
-    local player = esx.GetPlayerFromId(source)
+    local Source = source
+    local player = esx.GetPlayerFromId(Source)
     local job = player.job.name
     local affectedRow = MySQL.Sync.execute('UPDATE garages_jobs SET grade = @grade WHERE job = @job', {
         ['@grade'] = grade,
@@ -323,7 +323,7 @@ RegisterNetEvent('garages:updateMinimumManagementGrade', function(grade)
             esx.Jobs[job].grades[tostring(grade)].label .. '.', 'green')
     end
     if affectedRow and affectedRow == 0 then
-        MySQL.Sync.execute('INSERT INTO garages_jobs (job, grade) VALUES (@job, @grade)', {
+        MySQL.Async.execute('INSERT INTO garages_jobs (job, grade) VALUES (@job, @grade)', {
             ['@grade'] = grade,
             ['@job'] = job
         })
