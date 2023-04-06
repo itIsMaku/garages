@@ -107,9 +107,9 @@ end)
 
 RegisterNetEvent('garages:receiveVehicleDetails',
     function(garageId, vehicles, fetchedCategories, job, isManagement, grades)
-        print(isManagement)
+        --print(isManagement)
         cachedVehicles = vehicles
-        print(json.encode(grades))
+        --print(json.encode(grades))
         cachedJobGrades = grades
         local categories = {}
         for _, category in pairs(fetchedCategories) do
@@ -168,8 +168,8 @@ function formatVehicleData(vehicle)
             color = '#fc6900'
         end
     end
-    print(vehicle.impound)
-    print(vehicle.stored)
+    --print(vehicle.impound)
+    --print(vehicle.stored)
     if vehicle.impound then
         status = 'Odtahovka'
         color = 'orange'
@@ -229,11 +229,15 @@ end
 RegisterNetEvent('garages:spawnVehicle', function(vehicle, garageId)
     local garage = Garages[garageId]
     local coords = garage.coords
-    esx.Game.SpawnVehicle(vehicle.model, vector3(coords.x, coords.y, coords.z), coords.w, function(createdVehicle)
-        esx.Game.SetVehicleProperties(createdVehicle, json.decode(vehicle.data))
-        SetVehicleNumberPlateText(createdVehicle, vehicle.plate)
-        TaskWarpPedIntoVehicle(PlayerPedId(), createdVehicle, -1)
-    end)
+    local playerPed = PlayerPedId()
+    local distance = #(GetEntityCoords(playerPed) - vector3(coords.x, coords.y, coords.z))
+    if distance < garage.zone_radius.width or distance < garage.zone_radius.height then
+        esx.Game.SpawnVehicle(vehicle.model, vector3(coords.x, coords.y, coords.z), coords.w, function(createdVehicle)
+            esx.Game.SetVehicleProperties(createdVehicle, json.decode(vehicle.data))
+            SetVehicleNumberPlateText(createdVehicle, vehicle.plate)
+            TaskWarpPedIntoVehicle(playerPed, createdVehicle, -1)
+        end)
+    end
 end)
 
 RegisterNetEvent('garages:createdCategory', function(garage)
@@ -250,6 +254,8 @@ RegisterNetEvent('garages:deleteGarage', function(garage)
     Garages[garage] = nil
 end)
 
+--[[
+
 RegisterCommand('red', function()
     local vehicle = GetVehiclePedIsIn(PlayerPedId())
     SetVehicleCustomPrimaryColour(vehicle, 255, 255, 0)
@@ -265,8 +271,6 @@ Citizen.CreateThread(function()
         end
     end
 end)
-
---[[
 
  for _, category in pairs(fetchedCategories) do
         if category.parent ~= nil then

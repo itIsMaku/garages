@@ -2,6 +2,12 @@ RegisterNetEvent('garages:impoundVehicle', function(plate, data)
     local Source = source
     local player = esx.GetPlayerFromId(Source)
     local entity = NetworkGetEntityFromNetworkId(data.netId)
+    local playerPed = GetPlayerPed(Source)
+    local distance = (#(GetEntityCoords(playerPed) - GetEntityCoords(entity)))
+    if distance > 5 then
+        player.showNotification('Vozidlo je příliš daleko.', 'error')
+        return
+    end
     data.netId = nil
     player.showNotification('Odtahování vozidla...')
     SetTimeout(5000, function()
@@ -38,7 +44,7 @@ RegisterNetEvent('garages:requestImpoundVehicles', function(impound, job, other)
     )
     local receivingVehicles = {}
     for _, vehicle in each(vehicles) do
-        print(vehicle.plate)
+        --print(vehicle.plate)
         vehicle.impound_data = vehicle.impound_data and json.decode(vehicle.impound_data) or nil
         receivingVehicles[vehicle.plate] = vehicle
     end
@@ -51,21 +57,20 @@ RegisterNetEvent('garages:payImpound', function(plate, data)
     local playerPed = GetPlayerPed(Source)
     local coords = GetEntityCoords(playerPed)
     local impound = Impounds[data.impound]
-    local distance = #(coords - impound.coords)
-    if distance > impound.zone_radius.width or distance > impound.zone_radius.height then
-        return
+    local distance = #(coords - vector3(impound.coords))
+    if distance < impound.zone_radius.width or distance < impound.zone_radius.height then
+        if not pay(Source, ImpoundPrice) then
+            return
+        end
+        MySQL.Async.execute(
+            'UPDATE users_vehicles SET impound = @impound, stored = @stored, impound_data = @impound_data WHERE plate = @plate',
+            {
+                ['@plate'] = plate,
+                ['@impound_data'] = json.encode({}),
+                ['@impound'] = false,
+                ['@stored'] = true
+            }
+        )
+        player.showNotification('Vozidlo bylo přemístěno do garáže.', 'green')
     end
-    if not pay(Source, ImpoundPrice) then
-        return
-    end
-    MySQL.Async.execute(
-        'UPDATE users_vehicles SET impound = @impound, stored = @stored, impound_data = @impound_data WHERE plate = @plate',
-        {
-            ['@plate'] = plate,
-            ['@impound_data'] = json.encode({}),
-            ['@impound'] = false,
-            ['@stored'] = true
-        }
-    )
-    player.showNotification('Vozidlo bylo přemístěno do garáže.', 'green')
 end)

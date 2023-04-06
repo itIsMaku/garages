@@ -183,8 +183,8 @@ RegisterCommand('vehicleToSociety', function(source, args)
             'Garáže ^7» ^1Tento job nemá garáž nebo nastavenou pozici pro správu^0')
         return
     end
-    print('minimalManagementGrade: ' .. minimalManagementGrade)
-    print('player.job.grade: ' .. player.job.grade)
+    --print('minimalManagementGrade: ' .. minimalManagementGrade)
+    --print('player.job.grade: ' .. player.job.grade)
     if player.job.grade < minimalManagementGrade then
         TriggerClientEvent('chat:addMessage', source,
             'Garáže ^7» ^1Pro přepsání vozidla na firmu musíš mít povolené spravování firemní garáže na tvé pozici^0')

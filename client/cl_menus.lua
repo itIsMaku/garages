@@ -1,11 +1,11 @@
 function requestGarageMenu(garageId)
     local garage = Garages[garageId]
-    print('requesting garage menu for ' .. garageId)
+    --print('requesting garage menu for ' .. garageId)
     if IsPedInAnyVehicle(PlayerPedId()) then
-        print('player is in vehicle')
+        --print('player is in vehicle')
         openConfirmationMenu('Uložit vozidlo?', function(state)
             if state then
-                print('storing vehicle')
+                --print('storing vehicle')
                 storeVehicle(garageId)
             end
         end, false, false)
@@ -19,7 +19,7 @@ function requestGarageMenu(garageId)
 end
 
 function openGarageMenu(vehicles, job, isManagement, garageId, categories)
-    print('openGarageMenu', vehicles, job, isManagement, garageId, categories)
+    --print('openGarageMenu', vehicles, job, isManagement, garageId, categories)
     local uncategorized = {}
     for plate, vehicle in pairs(vehicles) do
         if job and vehicle.category ~= nil then
@@ -31,14 +31,14 @@ function openGarageMenu(vehicles, job, isManagement, garageId, categories)
                 uncategorized[plate] = vehicle
             end
         else
-            print(job, vehicle.job)
+            --print(job, vehicle.job)
             if job == nil and vehicle.job == nil or job == vehicle.job then
                 uncategorized[plate] = vehicle
             end
         end
     end
-    print(json.encode(categories), { indent = true })
-    print(json.encode(uncategorized), { indent = true })
+    --print(json.encode(categories), { indent = true })
+    --print(json.encode(uncategorized), { indent = true })
     local elements = {}
     if isManagement then
         table.insert(elements, {
@@ -88,7 +88,7 @@ end
 function openCategoryMenu(category, garageId)
     local elements = {}
     for plate, vehicle in pairs(category.vehicles) do
-        print(category.name, plate, vehicle)
+        --print(category.name, plate, vehicle)
         table.insert(elements, {
             label = formatVehicleData(vehicle),
             plate = plate
@@ -146,7 +146,7 @@ function openGarageEditMenu(garageId, categories, uncategorized, vehicles, job)
             })
         elseif data.current.action == 'minimum_management_grade' then
             selectJobGrade('Minimální pozice', function(grade)
-                TriggerServerEvent('garages:updateMinimumManagementGrade', grade)
+                TriggerServerEvent('garages:updateMinimumManagementGrade', grade, garageId)
             end, true)
         elseif data.current.category ~= nil then
             openCategoryEditMenu(categories[data.current.category], garageId)
@@ -212,7 +212,7 @@ function openCreateCategoryMenu(garageId, initData)
                 return
             end
             local category = cachedCategories[initData.name]
-            print('^4', json.encode(category), initData.job, '^0')
+            --print('^4', json.encode(category), initData.job, '^0')
             if category ~= nil and category.job == initData.job then
                 esx.ShowNotification('Kategorie s tímto názvem již existuje!', 'error')
                 return
@@ -362,7 +362,6 @@ function openVehicleEditMenu(vehicle, garageId)
 end
 
 function openConfirmationMenu(title, callback, closeAll, showCancel, translation)
-    print('openConfirmationMenu', title, callback, closeAll, showCancel, translation)
     local elements = {}
     local translation = translation or { cancel = 'Zrušit', confirm = 'Potvrdit' }
     if showCancel then

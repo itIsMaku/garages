@@ -133,28 +133,27 @@ function openImpoundMenu(vehicles, job, other)
     end)
 end
 
-RegisterCommand('impoundClosest', function()
-    impoundClosestVehicle()
-end)
+-- RegisterCommand('impoundClosest', function()
+--     impoundClosestVehicle()
+-- end)
 
-function impoundClosestVehicle()
-    local playerCoords = GetEntityCoords(PlayerPedId())
-    local vehicle = GetClosestVehicle(playerCoords.x, playerCoords.y, playerCoords.z, 2.0, 0, 7)
-    print(vehicle)
-    if vehicle == nil or not DoesEntityExist(vehicle) then
-        esx.ShowNotification('Žádné vozidlo poblíž nenalezeno.', 'error')
-        return
-    end
-    impoundVehicle(vehicle, {
-        authority = {
-            job = esx.PlayerData.job.name,
-            name = GetPlayerName() -- ? esx.PlayerData.name ? nejak ziskat ic jmeno, idk nemam cas
-        },
-        netId = NetworkGetNetworkIdFromEntity(vehicle)
-    })
-end
+-- function impoundClosestVehicle()
+--     local playerCoords = GetEntityCoords(PlayerPedId())
+--     local vehicle = GetClosestVehicle(playerCoords.x, playerCoords.y, playerCoords.z, 2.0, 0, 7)
+--     if vehicle == nil or not DoesEntityExist(vehicle) then
+--         esx.ShowNotification('Žádné vozidlo poblíž nenalezeno.', 'error')
+--         return
+--     end
+--     impoundVehicle(vehicle, {
+--         authority = {
+--             job = esx.PlayerData.job.name,
+--             name = ''
+--         },
+--         netId = NetworkGetNetworkIdFromEntity(vehicle)
+--     })
+-- end
 
-exports('impoundClosestVehicle', impoundClosestVehicle)
+-- exports('impoundClosestVehicle', impoundClosestVehicle)
 
 function impoundVehicle(entity, impoundData)
     esx.UI.Menu.Open('default', 'garages', 'impound_vehicle', {

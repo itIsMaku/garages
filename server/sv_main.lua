@@ -84,74 +84,84 @@ RegisterNetEvent('garages:requestVehicleDetails', function(garageId)
     local player = esx.GetPlayerFromId(Source)
     local job = player.job.name
     local vehicles = {}
-    -- if job == nil then
-    --     vehicles = MySQL.Sync.fetchAll(
-    --         'SELECT plate, model, garage, stored, impound, type, data, job FROM users_vehicles WHERE owner = @owner',
-    --         {
-    --             ['@owner'] = player.identifier,
-    --         }
-    --     )
-    -- else
-    --     if player.job.name ~= job then
-    --         return
-    --     end
-    --     vehicles = MySQL.Sync.fetchAll(
-    --         'SELECT plate, model, garage, stored, impound, type, category, data, job FROM users_vehicles WHERE job = @job',
-    --         {
-    --             ['@job'] = job,
-    --         }
-    --     )
-    -- end
-    vehicles = MySQL.Sync.fetchAll(
-        'SELECT plate, model, garage, stored, impound, type, category, data, job, impound_data FROM users_vehicles WHERE job = @job OR owner = @owner',
-        {
-            ['@job'] = job,
-            ['@owner'] = player.identifier,
-        }
-    )
-    local minimalManagementGrade = getMinimalManagementGrade(job)
-    local receivingVehicles = {}
-    for _, vehicle in each(vehicles) do
-        vehicle.data = json.decode(vehicle.data)
-        vehicle.data = {
-            engineHealth = vehicle.data.engineHealth,
-        }
-        vehicle.stored = vehicle.stored == 1
-        vehicle.impound = vehicle.impound == 1
-        vehicle.impound_data = vehicle.impound_data and json.decode(vehicle.impound_data) or nil
-        receivingVehicles[vehicle.plate] = vehicle
+    local playerPed = GetPlayerPed(Source)
+    local garage = Garages[garageId]
+    local distance = #(GetEntityCoords(playerPed) - vector3(garage.coords))
+    if distance < garage.zone_radius.width or distance < garage.zone_radius.height then
+        -- if job == nil then
+        --     vehicles = MySQL.Sync.fetchAll(
+        --         'SELECT plate, model, garage, stored, impound, type, data, job FROM users_vehicles WHERE owner = @owner',
+        --         {
+        --             ['@owner'] = player.identifier,
+        --         }
+        --     )
+        -- else
+        --     if player.job.name ~= job then
+        --         return
+        --     end
+        --     vehicles = MySQL.Sync.fetchAll(
+        --         'SELECT plate, model, garage, stored, impound, type, category, data, job FROM users_vehicles WHERE job = @job',
+        --         {
+        --             ['@job'] = job,
+        --         }
+        --     )
+        -- end
+        vehicles = MySQL.Sync.fetchAll(
+            'SELECT plate, model, garage, stored, impound, type, category, data, job, impound_data FROM users_vehicles WHERE job = @job OR owner = @owner',
+            {
+                ['@job'] = job,
+                ['@owner'] = player.identifier,
+            }
+        )
+        local minimalManagementGrade = getMinimalManagementGrade(job)
+        local receivingVehicles = {}
+        for _, vehicle in each(vehicles) do
+            vehicle.data = json.decode(vehicle.data)
+            vehicle.data = {
+                engineHealth = vehicle.data.engineHealth,
+            }
+            vehicle.stored = vehicle.stored == 1
+            vehicle.impound = vehicle.impound == 1
+            vehicle.impound_data = vehicle.impound_data and json.decode(vehicle.impound_data) or nil
+            receivingVehicles[vehicle.plate] = vehicle
+        end
+        local categories = {}
+        local isManagement = player.job.grade >= minimalManagementGrade and job ~= nil
+        if job ~= nil then
+            categories = getJobCategories(job, tonumber(player.job.grade), isManagement)
+        end
+        local grades = nil
+        if isManagement then
+            grades = esx.Jobs[job].grades or {}
+        end
+        TriggerClientEvent('garages:receiveVehicleDetails', Source, garageId, receivingVehicles, categories, job,
+            isManagement, grades)
     end
-    local categories = {}
-    local isManagement = player.job.grade >= minimalManagementGrade and job ~= nil
-    if job ~= nil then
-        categories = getJobCategories(job, tonumber(player.job.grade), isManagement)
-    end
-    local grades = nil
-    if isManagement then
-        grades = esx.Jobs[job].grades or {}
-    end
-    TriggerClientEvent('garages:receiveVehicleDetails', Source, garageId, receivingVehicles, categories, job,
-        isManagement, grades)
 end)
 
 RegisterNetEvent('garages:spawnVehicle', function(plate, garageId, money)
     local Source = source
-    if money then
-        if not pay(Source, money) then
-            return
+    local playerPed = GetPlayerPed(Source)
+    local garage = Garages[garageId]
+    local distance = #(GetEntityCoords(playerPed) - vector3(garage.coords))
+    if distance < garage.zone_radius.width or distance < garage.zone_radius.height then
+        if money then
+            if not pay(Source, money) then
+                return
+            end
         end
-    end
-    local vehicle = MySQL.single.await(
-        'SELECT * FROM users_vehicles WHERE plate = @plate',
-        {
+        local vehicle = MySQL.single.await(
+            'SELECT * FROM users_vehicles WHERE plate = @plate',
+            {
+                ['@plate'] = plate,
+            }
+        )
+        TriggerClientEvent('garages:spawnVehicle', Source, vehicle, garageId)
+        MySQL.Async.execute('UPDATE users_vehicles SET stored = @stored WHERE plate = @plate', {
+            ['@stored'] = false,
             ['@plate'] = plate,
-        }
-    )
-    TriggerClientEvent('garages:spawnVehicle', Source, vehicle, garageId)
-    MySQL.Async.execute('UPDATE users_vehicles SET stored = @stored WHERE plate = @plate', {
-        ['@stored'] = false,
-        ['@plate'] = plate,
-    })
+        })
+    end
 end)
 
 function getJobCategories(job, grade, isManagement)
@@ -163,7 +173,7 @@ function getJobCategories(job, grade, isManagement)
             local restrictions = category.restriction
             if not isManagement and restrictions ~= nil and restrictions ~= {} then
                 if restrictions.minimal_grade ~= nil then
-                    print(grade, restrictions.minimal_grade)
+                    --print(grade, restrictions.minimal_grade)
                     if grade < restrictions.minimal_grade then
                         jobCategories[name].allowed = false
                     end
@@ -199,10 +209,10 @@ RegisterNetEvent('garages:storeVehicle', function(garageId, plate, vehicle, vehi
         esxPlayer.showNotification('Toto vozidlo není tvé ani tvé firmy.', 'error')
         return
     end
-    print(vehicleRow.job)
-    print(esxPlayer.job.name)
-    print(vehicleRow.owner)
-    print(esxPlayer.identifier)
+    -- print(vehicleRow.job)
+    -- print(esxPlayer.job.name)
+    -- print(vehicleRow.owner)
+    -- print(esxPlayer.identifier)
     local affectedRows = MySQL.Sync.execute(
         'UPDATE users_vehicles SET stored = @stored, data = @data, garage = @garage WHERE plate = @plate',
         {
@@ -245,7 +255,7 @@ RegisterNetEvent('garages:createCategory', function(garage, data)
 end)
 
 RegisterNetEvent('garages:moveVehicle', function(plate, category)
-    print(plate, category)
+    -- print(plate, category)
     MySQL.Async.execute(
         'UPDATE users_vehicles SET category = @category WHERE plate = @plate',
         {
@@ -310,9 +320,15 @@ RegisterNetEvent('garages:moveToPersonal', function(vehicle)
     )
 end)
 
-RegisterNetEvent('garages:updateMinimumManagementGrade', function(grade)
+RegisterNetEvent('garages:updateMinimumManagementGrade', function(grade, garageId)
     local Source = source
     local player = esx.GetPlayerFromId(Source)
+    local playerPed = GetPlayerPed(Source)
+    local garage = Garages[garageId]
+    local distance = #(GetEntityCoords(playerPed) - vector3(garage.coords))
+    if distance < garage.zone_radius.width or distance < garage.zone_radius.height then
+        return
+    end
     local job = player.job.name
     local affectedRow = MySQL.Sync.execute('UPDATE garages_jobs SET grade = @grade WHERE job = @job', {
         ['@grade'] = grade,
