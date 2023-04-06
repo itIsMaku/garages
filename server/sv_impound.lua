@@ -48,6 +48,13 @@ end)
 RegisterNetEvent('garages:payImpound', function(plate, data)
     local Source = source
     local player = esx.GetPlayerFromId(Source)
+    local playerPed = GetPlayerPed(Source)
+    local coords = GetEntityCoords(playerPed)
+    local impound = Impounds[data.impound]
+    local distance = #(coords - impound.coords)
+    if distance > impound.zone_radius.width or distance > impound.zone_radius.height then
+        return
+    end
     if not pay(Source, ImpoundPrice) then
         return
     end

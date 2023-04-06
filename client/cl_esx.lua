@@ -18,6 +18,5 @@ end)
 
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
-    print(json.encode(job))
     esx.PlayerData.job = job
 end)
