@@ -7,14 +7,15 @@ RegisterCommand('addGarage', function(source, args, raw)
             'Vozidla ^7» ^1Na toto nemáš dostatečná oprávnění^0')
         return
     end
-    if #args ~= 3 then
+    if #args ~= 4 then
         TriggerClientEvent('chat:addMessage', source,
-            'Garáže ^7» ^1Použití: ^0/addGarage <id> <display_name>  <blip>^0')
+            'Garáže ^7» ^1Použití: ^0/addGarage <id> <display_name> <blip> <type>^0')
         return
     end
     local id = args[1]
     local displayName = args[2]
     local blip = args[3] == 'true' and 1 or 0
+    local vehType = args[4] == 'nil' and 'car' or args[4]
     local playerPed = GetPlayerPed(source)
     local coords = GetEntityCoords(playerPed)
     local heading = GetEntityHeading(playerPed)
@@ -26,16 +27,18 @@ RegisterCommand('addGarage', function(source, args, raw)
         zone_radius = {
             width = 5.0,
             height = 5.0
-        }
+        },
+        type = vehType
     }
     MySQL.Async.execute(
-        'INSERT INTO garages (id, coords, display_name, blip, zone_radius) VALUES (@id, @coords, @display_name, @blip, @zone_radius)',
+        'INSERT INTO garages (id, coords, display_name, blip, zone_radius, type) VALUES (@id, @coords, @display_name, @blip, @zone_radius, @type)',
         {
             ['@id'] = id,
             ['@coords'] = json.encode(garage.coords),
             ['@display_name'] = displayName,
             ['@blip'] = blip,
-            ['@zone_radius'] = json.encode(garage.zone_radius)
+            ['@zone_radius'] = json.encode(garage.zone_radius),
+            ['@type'] = vehType
         }, function(rowsChanged)
             if rowsChanged == 1 then
                 TriggerClientEvent('chat:addMessage', source,
@@ -124,15 +127,16 @@ RegisterCommand('giveVehicle', function(source, args, raw)
             'Vozidla ^7» ^1Na toto nemáš dostatečná oprávnění^0')
         return
     end
-    if #args ~= 4 then
+    if #args ~= 5 then
         TriggerClientEvent('chat:addMessage', source,
-            'Vozidla ^7» ^1Použití: ^0/giveVehicle <target> <model> <plate> <job>^0')
+            'Vozidla ^7» ^1Použití: ^0/giveVehicle <target> <model> <plate> <job> <type>^0')
         return
     end
     local target = args[1]
     local model = args[2]
     local plate = args[3] == 'nil' and nil or args[3]
     local job = args[4] == 'nil' and nil or args[4]
+    local vehType = args[5] == 'nil' and 'car' or args[5]
     local esxTarget = esx.GetPlayerFromId(target)
     MySQL.Async.execute(
         'INSERT INTO users_vehicles (plate, owner, model, data, garage, stored, impound, type, job) VALUES (@plate, @owner, @model, @data, @garage, @stored, @impound, @type, @job)',
@@ -144,8 +148,8 @@ RegisterCommand('giveVehicle', function(source, args, raw)
             ['@garage'] = nil,
             ['@stored'] = true,
             ['@impound'] = false,
-            ['@type'] = nil,
-            ['@job'] = job
+            ['@job'] = job,
+            ['@type'] = vehType
         }, function(rowsChanged)
             if rowsChanged == 1 then
                 local admin = 'Konzole'

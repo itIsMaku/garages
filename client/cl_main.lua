@@ -12,7 +12,8 @@ Citizen.CreateThread(function()
     exports.chat:addSuggestion('/addGarage', 'Přidání garáže do databáze', {
         { name = 'id',           help = 'ID garáže' },
         { name = 'display_name', help = 'Název garáže' },
-        { name = 'blip',         help = 'Zobrazovat blip - true/false' }
+        { name = 'blip',         help = 'Zobrazovat blip - true/false' },
+        { name = 'type',         help = 'Typ vozidla - car / etc.' }
     })
     exports.chat:addSuggestion('/deleteGarage', 'Smazání garáže z databáze', {
         { name = 'id', help = 'ID garáže' }
@@ -21,7 +22,8 @@ Citizen.CreateThread(function()
         { name = 'target', help = 'ID hráče' },
         { name = 'model',  help = 'Model vozidla' },
         { name = 'spz',    help = 'SPZ vozidla' },
-        { name = 'job',    help = 'Jaké firmě auto patří - Jméno jobu / nil' }
+        { name = 'job',    help = 'Jaké firmě auto patří - Jméno jobu / nil' },
+        { name = 'type',   help = 'Typ vozidla - car / etc.' }
     })
     exports.chat:addSuggestion('/teleportGarage', 'Teleportace do garáže', {
         { name = 'target', help = 'ID hráče' }
@@ -39,14 +41,16 @@ end)
 
 function addGarage(garage)
     if garage.blip then
+        local blipDetails = GarageTypesBlips[garage.type]
+        print(json.encode(blipDetails))
         local blip = AddBlipForCoord(garage.coords)
-        SetBlipSprite(blip, 357)
-        SetBlipDisplay(blip, 4)
-        SetBlipScale(blip, 0.8)
-        SetBlipColour(blip, 4)
-        SetBlipAsShortRange(blip, true)
+        SetBlipSprite(blip, blipDetails.sprite)
+        SetBlipDisplay(blip, blipDetails.display)
+        SetBlipScale(blip, blipDetails.scale)
+        SetBlipColour(blip, blipDetails.colour)
+        SetBlipAsShortRange(blip, blipDetails.short_range)
         BeginTextCommandSetBlipName('STRING')
-        AddTextComponentString('<font face="OpenSans-SemiBold">Garáž</font>')
+        AddTextComponentString('<font face="OpenSans-SemiBold">' .. blipDetails.title .. '</font>')
         EndTextCommandSetBlipName(blip)
     end
     TriggerEvent('polyZone:createZone', 'garage_' .. garage.id, 'box', {

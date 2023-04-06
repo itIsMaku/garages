@@ -107,10 +107,11 @@ RegisterNetEvent('garages:requestVehicleDetails', function(garageId)
         --     )
         -- end
         vehicles = MySQL.Sync.fetchAll(
-            'SELECT plate, model, garage, stored, impound, type, category, data, job, impound_data FROM users_vehicles WHERE job = @job OR owner = @owner',
+            'SELECT plate, model, garage, stored, impound, type, category, data, job, impound_data FROM users_vehicles WHERE (job = @job OR owner = @owner) AND type = @type',
             {
                 ['@job'] = job,
                 ['@owner'] = player.identifier,
+                ['@type'] = garage.type
             }
         )
         local minimalManagementGrade = getMinimalManagementGrade(job)

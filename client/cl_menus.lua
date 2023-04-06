@@ -18,8 +18,8 @@ function requestGarageMenu(garageId)
     -- end
 end
 
-function openGarageMenu(vehicles, job, isManagement, garageId, categories)
-    --print('openGarageMenu', vehicles, job, isManagement, garageId, categories)
+function openGarageMenu(vehicles, job, isManagement, garageId, categories, type)
+    print('openGarageMenu', json.encode(vehicles), job, isManagement, garageId, categories)
     local uncategorized = {}
     for plate, vehicle in pairs(vehicles) do
         if job and vehicle.category ~= nil then
@@ -51,7 +51,7 @@ function openGarageMenu(vehicles, job, isManagement, garageId, categories)
         })
     end
     for name, category in pairs(categories) do
-        if category.allowed then
+        if category.allowed and category.type == Garages[garageId].type then
             table.insert(elements, {
                 label = category.name,
                 category = category.name,

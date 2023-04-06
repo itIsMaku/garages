@@ -5,7 +5,8 @@ description 'garage script using polyzones'
 lua54 'yes'
 
 shared_scripts {
-    'configs/sh_impound.lua'
+    'configs/sh_impound.lua',
+    'configs/sh_blips.lua',
 }
 
 client_scripts {
