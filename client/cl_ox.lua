@@ -1,4 +1,5 @@
 ox_context = true
+ox_target = true
 
 if ox_context then
     local function selectedElement(element, submit)
@@ -47,3 +48,27 @@ if ox_context then
         end
     end
 end
+
+if ox_target then
+    local options = {
+        {
+            name = 'garages:impoundVehicle',
+            event = 'garages:impoundVehicle',
+            icon = 'fa-solid fa-car',
+            label = 'Odtáhnout vozidlo',
+            canInteract = function(entity, distance, coords, name, bone)
+                return isJobImpoundManagement(esx.PlayerData.job.name)
+            end
+        },
+    }
+
+    exports.ox_target:addGlobalVehicle(options)
+end
+
+AddEventHandler('onClientResourceStop', function(resourceName)
+    if GetCurrentResourceName() ~= resourceName then return end
+
+    if ox_target then
+        exports.ox_target:removeGlobalVehicle({ 'garages:impoundVehicle' })
+    end
+end)

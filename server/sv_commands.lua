@@ -14,7 +14,7 @@ RegisterCommand('addGarage', function(source, args, raw)
     end
     local id = args[1]
     local displayName = args[2]
-    local blip = args[3] == 'true' and 1 or 0
+    local blip = args[3] == 'true'
     local vehType = args[4] == 'nil' and 'car' or args[4]
     local playerPed = GetPlayerPed(source)
     local coords = GetEntityCoords(playerPed)

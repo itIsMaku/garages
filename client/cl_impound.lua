@@ -289,3 +289,13 @@ function isJobImpoundManagement(job)
 end
 
 RegisterNetEvent('garages:receiveImpoundVehicles', openImpoundMenu)
+
+AddEventHandler('garages:impoundVehicle', function(data)
+    local vehicle = data.entity
+    impoundVehicle(vehicle, {
+        authority = {
+            job = esx.PlayerData.job.name
+        },
+        netId = NetworkGetNetworkIdFromEntity(vehicle)
+    })
+end)
