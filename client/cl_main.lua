@@ -83,9 +83,7 @@ AddEventHandler('polyZone:enteredZone', function(zoneName, point)
             -- DrawMarker(43, coords.x, coords.y, coords.z - 3.0, 0, 0, 0, 0, 0, coords.w, zone_radius.height,
             --     zone_radius.width, 5.0, rgb.r, rgb.g, rgb.b, 100)
             DrawMarker(21, coords.x, coords.y, coords.z, 0, 0, 0, 0.0, rotate, 0.0, 0.8, 0.7, 0.8, rgb.r, rgb.g, rgb.b,
-                100,
-                false,
-                false, 2, true)
+                100, false, false, 2, true)
             esx.ShowHelpNotification('~INPUT_CONTEXT~ <font face="OpenSans-SemiBold">Garáže</font>')
             if IsControlJustPressed(0, 38) then
                 requestGarageMenu(garageId)
@@ -106,7 +104,9 @@ end)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
-    esx.UI.Menu.CloseAll()
+    if not ox_context then
+        esx.UI.Menu.CloseAll()
+    end
     for _, garage in pairs(Garages) do
         TriggerEvent('polyZone:removeZone', 'garage_' .. garage.id)
     end
@@ -133,10 +133,12 @@ RegisterNetEvent('garages:receiveVehicleDetails',
             elements = {
                 {
                     label = 'Osobní vozidla',
+                    description = 'Veškerá vozidla, která jste si koupili',
                     action = 'personal'
                 },
                 {
                     label = 'Firemní vozidla',
+                    description = 'Veškerá vozidla, které vlastní tvá firma',
                     action = 'job'
                 }
             }
@@ -191,10 +193,13 @@ function formatVehicleData(vehicle)
         color,
         status
     )
-    return vehicleLabel
+    if ox_context then
+        vehicleLabel = string.format('%s - %s', vehicleName, vehicle.plate)
+    end
+    return vehicleLabel, status
 end
 
-function selectVehicle(vehicle, garageId)
+function selectVehicle(vehicle, garageId, parent)
     if vehicle.impound then
         esx.ShowNotification('Vozidlo je na odtahovce.')
         return
@@ -208,19 +213,19 @@ function selectVehicle(vehicle, garageId)
             spawnVehicle(vehicle, garageId)
             return
         end
-        spawnForCash('Převést vozidlo do garáže za 500$?', vehicle.plate, garageId, 500)
+        spawnForCash('Převést vozidlo do garáže za 500$?', vehicle.plate, garageId, 500, parent)
         return
     end
-    spawnForCash('Převést vozidlo za 700$?', vehicle.plate, garageId, 700)
+    spawnForCash('Převést vozidlo za 700$?', vehicle.plate, garageId, 700, parent)
     return
 end
 
-function spawnForCash(title, plate, garageId, amount)
+function spawnForCash(title, plate, garageId, amount, parent)
     openConfirmationMenu(title, function(state)
         if state then
             TriggerServerEvent('garages:spawnVehicle', plate, garageId, amount)
         end
-    end, true, true)
+    end, parent, true, true)
 end
 
 function spawnVehicle(vehicle, garageId)

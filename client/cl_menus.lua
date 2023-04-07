@@ -43,6 +43,8 @@ function openGarageMenu(vehicles, job, isManagement, garageId, categories, type)
     if isManagement then
         table.insert(elements, {
             label = 'Upravit garáž',
+            description = 'Menu pro správu firemní garáže',
+            icon = 'edit',
             action = 'edit'
         })
         table.insert(elements, {
@@ -51,7 +53,9 @@ function openGarageMenu(vehicles, job, isManagement, garageId, categories, type)
         })
     end
     for name, category in pairs(categories) do
+        print('^3isAllowed?', category.name, category.allowed)
         if category.allowed and category.type == Garages[garageId].type then
+            print('^3insert', category.name)
             table.insert(elements, {
                 label = category.name,
                 category = category.name,
@@ -59,14 +63,22 @@ function openGarageMenu(vehicles, job, isManagement, garageId, categories, type)
         end
     end
     for plate, vehicle in pairs(uncategorized) do
+        local vehicleLabel, status = formatVehicleData(vehicle)
+        local description = nil
+        if ox_context then
+            description = ('Stav: %s\nGaráž: %s'):format(status,
+                Garages[vehicle.garage].display_name or Garages[garageId].display_name)
+        end
         table.insert(elements, {
-            label = formatVehicleData(vehicle),
-            plate = plate
+            label = vehicleLabel,
+            plate = plate,
+            description = description
         })
     end
     esx.UI.Menu.Open('default', 'garages', garageId, {
         title = Garages[garageId].display_name,
         align = 'top-right',
+        parent = 'select_type',
         elements = elements
     }, function(data, menu)
         local category = data.current.category
@@ -77,7 +89,7 @@ function openGarageMenu(vehicles, job, isManagement, garageId, categories, type)
         elseif data.current.action ~= 'spacer' then
             local plate = data.current.plate
             local vehicle = vehicles[plate]
-            selectVehicle(vehicle, garageId)
+            selectVehicle(vehicle, garageId, garageId)
             menu.close()
         end
     end, function(data, menu)
@@ -89,19 +101,27 @@ function openCategoryMenu(category, garageId)
     local elements = {}
     for plate, vehicle in pairs(category.vehicles) do
         --print(category.name, plate, vehicle)
+        local vehicleLabel, status = formatVehicleData(vehicle)
+        local description = nil
+        if ox_context then
+            description = ('Stav: %s\nGaráž: %s'):format(status,
+                Garages[vehicle.garage].display_name or Garages[garageId].display_name)
+        end
         table.insert(elements, {
-            label = formatVehicleData(vehicle),
-            plate = plate
+            label = vehicleLabel,
+            plate = plate,
+            description = description
         })
     end
     esx.UI.Menu.Open('default', 'garages', 'category', {
         title = category.name,
         align = 'top-right',
+        parent = garageId,
         elements = elements
     }, function(data, menu)
         local plate = data.current.plate
         local vehicle = category.vehicles[plate]
-        selectVehicle(vehicle, garageId)
+        selectVehicle(vehicle, garageId, 'category')
         menu.close()
     end, function(data, menu)
         menu.close()
@@ -112,10 +132,15 @@ function openGarageEditMenu(garageId, categories, uncategorized, vehicles, job)
     local elements = {
         {
             label = 'Vytvořit kategorii',
+            description =
+            'Vytvoříš novou kategorii pro vozidla, kterou můžeš limitovat od určité firemní pozice nebo pouze na určitou pozici',
+            icon = 'add',
             action = 'create_category'
         },
         {
             label = 'Minimální pozice správy',
+            description = 'Nastavení minimální firemní pozice, která může upravovat garáž',
+            icon = 'users',
             action = 'minimum_management_grade'
         },
         {
@@ -127,27 +152,34 @@ function openGarageEditMenu(garageId, categories, uncategorized, vehicles, job)
         table.insert(elements, {
             label = category.name,
             category = category.name,
+            icon = 'list'
+            --description = 'Upravit kategorii vozidel a vozidla uvnitř'
         })
     end
     for plate, vehicle in pairs(uncategorized) do
+        local vehicleLabel, status = formatVehicleData(vehicle)
         table.insert(elements, {
-            label = formatVehicleData(vehicle),
-            plate = plate
+            label = vehicleLabel,
+            plate = plate,
+            icon = 'car'
+            --description = 'Upravit vozidlo'
         })
     end
     esx.UI.Menu.Open('default', 'garages', 'edit', {
         title = 'Úprava garáže',
         align = 'top-right',
+        parent = garageId,
         elements = elements
     }, function(data, menu)
         if data.current.action == 'create_category' then
             openCreateCategoryMenu(garageId, {
-                job = job
+                job = job,
+                type = Garages[garageId].type
             })
         elseif data.current.action == 'minimum_management_grade' then
             selectJobGrade('Minimální pozice', function(grade)
                 TriggerServerEvent('garages:updateMinimumManagementGrade', grade, garageId)
-            end, true)
+            end, true, 'edit')
         elseif data.current.category ~= nil then
             openCategoryEditMenu(categories[data.current.category], garageId)
         elseif data.current.plate ~= nil then
@@ -159,6 +191,61 @@ function openGarageEditMenu(garageId, categories, uncategorized, vehicles, job)
 end
 
 function openCreateCategoryMenu(garageId, initData)
+    if ox_context then
+        local gradesOptions = {}
+        for id, data in pairs(cachedJobGrades) do
+            table.insert(gradesOptions, {
+                label = data.label,
+                value = tonumber(id)
+            })
+        end
+        local options = {
+            {
+                type = 'input',
+                label = 'Název kategorie',
+                description = 'Název kategorie, která se zobrazí v menu',
+                icon = 'tag',
+                required = true
+            },
+            {
+                type = 'select',
+                label = 'Minimální pozice',
+                description = 'Minimální pozice, která může kategorii otevřít',
+                icon = 'users',
+                options = gradesOptions,
+                clearable = true
+            },
+            {
+                type = 'select',
+                label = 'Vybraná pozice',
+                description =
+                'Specifická pozice, která může kategorii otevřít (pokud je vybrána, minimální pozice se ignoruje)',
+                icon = 'users',
+                options = gradesOptions,
+                clearable = true
+            }
+        }
+        local categoryInput = lib.inputDialog('Vytvořit kategorii', options)
+        if categoryInput == nil then
+            return
+        end
+        local name = categoryInput[1]
+        local minimal_grade = categoryInput[2]
+        local selected_grade = categoryInput[3]
+        local category = cachedCategories[name]
+        initData.name = name
+        initData.minimal_grade = minimal_grade
+        initData.only_grade = selected_grade
+        print(minimal_grade, selected_grade)
+        if category ~= nil and category.job == initData.job then
+            esx.ShowNotification('Kategorie s tímto názvem již existuje!', 'error')
+            return
+        end
+        esx.ShowNotification('Kategorie byla vytvořena!', 'green')
+        TriggerServerEvent('garages:createCategory', garageId, initData)
+        esx.UI.Menu.CloseAll()
+        return
+    end
     esx.UI.Menu.Open('default', 'garages', 'create_category', {
         title = 'Vytvořit kategorii',
         align = 'top-right',
@@ -205,7 +292,7 @@ function openCreateCategoryMenu(garageId, initData)
             selectJobGrade(data.current.label, function(id)
                 initData[action] = id
                 openCreateCategoryMenu(garageId, initData)
-            end, true)
+            end, true, 'create_category')
         elseif action == 'create' then
             if initData.name == nil then
                 esx.ShowNotification('Musíš zadat název kategorie!', 'error')
@@ -226,7 +313,7 @@ function openCreateCategoryMenu(garageId, initData)
     end)
 end
 
-function selectJobGrade(title, callback, close)
+function selectJobGrade(title, callback, close, parent)
     local elements = {
         {
             label = 'Bez omezení',
@@ -246,11 +333,13 @@ function selectJobGrade(title, callback, close)
     esx.UI.Menu.Open('default', 'garages', 'select_job_grade', {
         title = title,
         align = 'top-right',
-        elements = elements
+        parent = parent,
+        elements = elements,
     }, function(data, menu)
         if data.current.value ~= nil then
             callback(data.current.value)
-            if close then
+            print(data.current.value)
+            if not ox_context and close then
                 menu.close()
             end
         end
@@ -259,7 +348,7 @@ function selectJobGrade(title, callback, close)
     end)
 end
 
-function selectCategory(categories, callback)
+function selectCategory(categories, callback, parent)
     local elements = {
         {
             label = 'Bez kategorie',
@@ -279,6 +368,7 @@ function selectCategory(categories, callback)
     esx.UI.Menu.Open('default', 'garages', 'select_category', {
         title = 'Vyber kategorii',
         align = 'top-right',
+        parent = parent,
         elements = elements
     }, function(data, menu)
         if data.current.value ~= 'spacer' then
@@ -293,8 +383,10 @@ end
 function openCategoryEditMenu(category, garageId)
     local elements = {
         {
-            label = '<span style="color: red;">Smazat kategorii</span>',
-            action = 'delete'
+            label = ox_context and 'Smazat kategorii' or '<span style="color: red;">Smazat kategorii</span>',
+            action = 'delete',
+            description = 'Smažeš kategorii a vozidla přesuneš do hlavní kategorie',
+            icon = 'trash'
         },
         {
             label = ' ',
@@ -302,19 +394,26 @@ function openCategoryEditMenu(category, garageId)
         }
     }
     for plate, vehicle in pairs(category.vehicles) do
+        local vehicleLabel, status = formatVehicleData(vehicle)
+        local description = nil
+        if ox_context then
+            description = status
+        end
         table.insert(elements, {
-            label = formatVehicleData(vehicle),
-            plate = plate
+            label = vehicleLabel,
+            plate = plate,
+            --description = description
         })
     end
     esx.UI.Menu.Open('default', 'garages', 'edit_category', {
         title = 'Úprava kategorie',
         align = 'top-right',
+        parent = 'edit',
         elements = elements
     }, function(data, menu)
         if data.current.action == 'delete' then
             esx.ShowNotification(
-                'Kategorie ' .. category.name .. ' byla smazána a vozidla přesunuty do hlavní kategorie.', 'green')
+                'Kategorie ' .. category.name .. ' byla smazána a vozidla přesunuty do hlavní kategorie.', 'success')
             TriggerServerEvent('garages:deleteCategory', category.name)
             esx.UI.Menu.CloseAll()
         elseif data.current.plate ~= nil then
@@ -329,13 +428,18 @@ function openVehicleEditMenu(vehicle, garageId)
     esx.UI.Menu.Open('default', 'garages', 'edit_vehicle', {
         title = vehicle.plate .. ' - Úprava',
         align = 'top-right',
+        parent = 'edit',
         elements = {
             {
                 label = 'Přesunout',
+                description = 'Přesune vozidlo do jiné kategorie',
+                icon = 'arrows-up-down-left-right',
                 action = 'move'
             },
             {
                 label = 'Převést do osobní',
+                description = 'Přesune vozidlo do osobní garáže',
+                icon = 'square-parking',
                 action = 'owner'
             }
         }
@@ -350,7 +454,7 @@ function openVehicleEditMenu(vehicle, garageId)
                     'green')
                 TriggerServerEvent('garages:moveVehicle', vehicle.plate, category)
                 esx.UI.Menu.CloseAll()
-            end)
+            end, 'edit_vehicle')
         elseif data.current.action == 'owner' then
             esx.ShowNotification('Vozidlo ' .. vehicle.plate .. ' převedeno do osobní garáže.', 'green')
             TriggerServerEvent('garages:moveToPersonal', vehicle)
@@ -361,10 +465,15 @@ function openVehicleEditMenu(vehicle, garageId)
     end)
 end
 
-function openConfirmationMenu(title, callback, closeAll, showCancel, translation)
+function openConfirmationMenu(title, callback, parent, closeAll, showCancel, translation)
+    if ox_context and not showCancel then
+        print('ox_context: ' .. title)
+        callback(true)
+        return
+    end
     local elements = {}
     local translation = translation or { cancel = 'Zrušit', confirm = 'Potvrdit' }
-    if showCancel then
+    if showCancel and not ox_context then
         table.insert(elements, {
             label = translation.cancel,
             action = 'cancel'
@@ -377,6 +486,7 @@ function openConfirmationMenu(title, callback, closeAll, showCancel, translation
     esx.UI.Menu.Open('default', 'garages', 'confirmation', {
         title = title,
         align = 'top-right',
+        parent = parent,
         elements = elements
     }, function(data, menu)
         menu.close()

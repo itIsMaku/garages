@@ -250,7 +250,8 @@ RegisterNetEvent('garages:createCategory', function(garage, data)
         Categories[data.name] = {
             name = data.name,
             job = data.job,
-            restriction = restriction
+            restriction = restriction,
+            type = data.type or 'car'
         }
         TriggerClientEvent('garages:createdCategory', Source, garage)
     end
@@ -328,23 +329,23 @@ RegisterNetEvent('garages:updateMinimumManagementGrade', function(grade, garageI
     local playerPed = GetPlayerPed(Source)
     local garage = Garages[garageId]
     local distance = #(GetEntityCoords(playerPed) - vector3(garage.coords))
-    if distance > garage.zone_radius.width or distance > garage.zone_radius.height then
-        local job = player.job.name
-        local affectedRow = MySQL.Sync.execute('UPDATE garages_jobs SET grade = @grade WHERE job = @job', {
+    -- if distance > garage.zone_radius.width or distance > garage.zone_radius.height then
+    local job = player.job.name
+    local affectedRow = MySQL.Sync.execute('UPDATE garages_jobs SET grade = @grade WHERE job = @job', {
+        ['@grade'] = grade,
+        ['@job'] = job
+    })
+    if affectedRow then
+        player.showNotification('Minimální pozice pro správu garáže byla nastavena na ' ..
+            esx.Jobs[job].grades[tostring(grade)].label .. '.', 'green')
+    end
+    if affectedRow and affectedRow == 0 then
+        MySQL.Async.execute('INSERT INTO garages_jobs (job, grade) VALUES (@job, @grade)', {
             ['@grade'] = grade,
             ['@job'] = job
         })
-        if affectedRow then
-            player.showNotification('Minimální pozice pro správu garáže byla nastavena na ' ..
-                esx.Jobs[job].grades[tostring(grade)].label .. '.', 'green')
-        end
-        if affectedRow and affectedRow == 0 then
-            MySQL.Async.execute('INSERT INTO garages_jobs (job, grade) VALUES (@job, @grade)', {
-                ['@grade'] = grade,
-                ['@job'] = job
-            })
-        end
     end
+    -- end
 end)
 
 function pay(source, money)

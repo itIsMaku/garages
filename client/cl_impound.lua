@@ -36,6 +36,8 @@ AddEventHandler('polyZone:enteredZone', function(zoneName)
             local coords = Impounds[impound].coords
             local zone_radius = Impounds[impound].zone_radius
             esx.ShowHelpNotification('~INPUT_CONTEXT~ <font face="OpenSans-SemiBold">Odtahovka</font>')
+            DrawMarker(21, coords.x, coords.y, coords.z, 0, 0, 0, 0.0, 0.0, 0.0, 0.8, 0.7, 0.8, 255, 255, 0,
+                100, false, false, 2, true)
             -- DrawMarker(43, coords.x, coords.y, coords.z - 3.0, 0, 0, 0, 0, 0, coords.w, zone_radius.height,
             --     zone_radius.width, 5.0, 0, 0, 255, 100)
             if IsControlJustPressed(0, 38) then
@@ -57,10 +59,14 @@ function openImpoundMenu(vehicles, job, other)
         local elements = {
             {
                 label = 'Moje vozidla',
+                description = 'Vozidla, která ti byla odtažená',
+                icon = 'user',
                 action = 'personal'
             },
             {
                 label = 'Firemní vozidla',
+                description = 'Firemní vozidla, kteréábyly firmě odtažená',
+                icon = 'building',
                 action = 'job'
             }
         }
@@ -68,6 +74,8 @@ function openImpoundMenu(vehicles, job, other)
         if isJobImpoundManagement(esx.PlayerData.job.name) then
             table.insert(elements, {
                 label = 'Ostatní vozidla',
+                description = 'Veškerá vozidla odtažená policií, kde je vyžadována přítomnost policie',
+                icon = 'handcuffs',
                 action = 'other'
             })
         end
@@ -112,6 +120,7 @@ function openImpoundMenu(vehicles, job, other)
     esx.UI.Menu.Open('default', 'garages', 'personal_impound', {
         title = 'Odtahovka - ' .. Impounds[currentImpound].display_name,
         align = 'top-right',
+        parent = 'impound',
         elements = elements,
     }, function(data, menu)
         menu.close()
@@ -133,29 +142,65 @@ function openImpoundMenu(vehicles, job, other)
     end)
 end
 
--- RegisterCommand('impoundClosest', function()
---     impoundClosestVehicle()
--- end)
+RegisterCommand('impoundClosest', function()
+    impoundClosestVehicle()
+end)
 
--- function impoundClosestVehicle()
---     local playerCoords = GetEntityCoords(PlayerPedId())
---     local vehicle = GetClosestVehicle(playerCoords.x, playerCoords.y, playerCoords.z, 2.0, 0, 7)
---     if vehicle == nil or not DoesEntityExist(vehicle) then
---         esx.ShowNotification('Žádné vozidlo poblíž nenalezeno.', 'error')
---         return
---     end
---     impoundVehicle(vehicle, {
---         authority = {
---             job = esx.PlayerData.job.name,
---             name = ''
---         },
---         netId = NetworkGetNetworkIdFromEntity(vehicle)
---     })
--- end
+function impoundClosestVehicle()
+    local playerCoords = GetEntityCoords(PlayerPedId())
+    local vehicle = GetClosestVehicle(playerCoords.x, playerCoords.y, playerCoords.z, 2.0, 0, 7)
+    if vehicle == nil or not DoesEntityExist(vehicle) then
+        esx.ShowNotification('Žádné vozidlo poblíž nenalezeno.', 'error')
+        return
+    end
+    impoundVehicle(vehicle, {
+        authority = {
+            job = esx.PlayerData.job.name,
+            name = ''
+        },
+        netId = NetworkGetNetworkIdFromEntity(vehicle)
+    })
+end
 
--- exports('impoundClosestVehicle', impoundClosestVehicle)
+exports('impoundClosestVehicle', impoundClosestVehicle)
 
 function impoundVehicle(entity, impoundData)
+    if ox_context then
+        local impoundOptions = {}
+        for k, v in pairs(Impounds) do
+            table.insert(impoundOptions, {
+                label = v.display_name,
+                value = k
+            })
+        end
+        local options = {
+            {
+                type = 'select',
+                label = 'Odtahovka',
+                description = 'Na jaké odtahovce si hráč může vozidlo vyzvednout?',
+                icon = 'warehouse',
+                options = impoundOptions,
+                clearable = true
+            },
+            {
+                type = 'checkbox',
+                label = 'Vytáhnutí vlastníkem bez policie',
+                description = 'Může vlastník vozidla vyzvednout vozidlo bez přítomnosti policisty?',
+                icon = 'user-police',
+                checked = true
+            }
+        }
+        local impoundInput = lib.inputDialog('Odtáhnout vozidlo', options)
+        if impoundInput == nil then
+            return
+        end
+        impoundData.impound = impoundInput[1]
+        impoundData.self = impoundInput[2]
+        local plate = GetVehicleNumberPlateText(entity)
+        plate = string.gsub(plate, '%s+', '')
+        TriggerServerEvent('garages:impoundVehicle', plate, impoundData)
+        return
+    end
     esx.UI.Menu.Open('default', 'garages', 'impound_vehicle', {
         title = 'Odtáhnout vozidlo',
         align = 'top-right',
@@ -192,7 +237,7 @@ function impoundVehicle(entity, impoundData)
                 impoundData.self = state
                 menu.close()
                 impoundVehicle(entity, impoundData)
-            end, false, true, {
+            end, 'impound_vehicle', false, true, {
                 cancel = 'Ne',
                 confirm = 'Ano'
             })
