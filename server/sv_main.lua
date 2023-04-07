@@ -1,4 +1,5 @@
 esx = exports.es_extended:getSharedObject()
+esx.Jobs = esx.GetJobs()
 Garages = {}
 loaded = false
 Categories = {}
@@ -327,23 +328,22 @@ RegisterNetEvent('garages:updateMinimumManagementGrade', function(grade, garageI
     local playerPed = GetPlayerPed(Source)
     local garage = Garages[garageId]
     local distance = #(GetEntityCoords(playerPed) - vector3(garage.coords))
-    if distance < garage.zone_radius.width or distance < garage.zone_radius.height then
-        return
-    end
-    local job = player.job.name
-    local affectedRow = MySQL.Sync.execute('UPDATE garages_jobs SET grade = @grade WHERE job = @job', {
-        ['@grade'] = grade,
-        ['@job'] = job
-    })
-    if affectedRow then
-        player.showNotification('Minimální pozice pro správu garáže byla nastavena na ' ..
-            esx.Jobs[job].grades[tostring(grade)].label .. '.', 'green')
-    end
-    if affectedRow and affectedRow == 0 then
-        MySQL.Async.execute('INSERT INTO garages_jobs (job, grade) VALUES (@job, @grade)', {
+    if distance > garage.zone_radius.width or distance > garage.zone_radius.height then
+        local job = player.job.name
+        local affectedRow = MySQL.Sync.execute('UPDATE garages_jobs SET grade = @grade WHERE job = @job', {
             ['@grade'] = grade,
             ['@job'] = job
         })
+        if affectedRow then
+            player.showNotification('Minimální pozice pro správu garáže byla nastavena na ' ..
+                esx.Jobs[job].grades[tostring(grade)].label .. '.', 'green')
+        end
+        if affectedRow and affectedRow == 0 then
+            MySQL.Async.execute('INSERT INTO garages_jobs (job, grade) VALUES (@job, @grade)', {
+                ['@grade'] = grade,
+                ['@job'] = job
+            })
+        end
     end
 end)
 
