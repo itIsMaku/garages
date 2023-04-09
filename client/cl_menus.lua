@@ -63,11 +63,15 @@ function openGarageMenu(vehicles, job, isManagement, garageId, categories, type)
         end
     end
     for plate, vehicle in pairs(uncategorized) do
-        local vehicleLabel, status = formatVehicleData(vehicle)
+        local impoundName = nil
+        if vehicle.impound_data and vehicle.impound_data.impound then
+            impoundName = Impounds[vehicle.impound_data.impound].display_name
+        end
+        local vehicleLabel, status = formatVehicleData(vehicle, impoundName)
         local description = nil
         if ox_context then
             description = ('Stav: %s\nGaráž: %s'):format(status,
-                Garages[vehicle.garage].display_name or Garages[garageId].display_name)
+                Garages[vehicle.garage] and Garages[vehicle.garage].display_name or Garages[garageId].display_name)
         end
         table.insert(elements, {
             label = vehicleLabel,
@@ -105,7 +109,7 @@ function openCategoryMenu(category, garageId)
         local description = nil
         if ox_context then
             description = ('Stav: %s\nGaráž: %s'):format(status,
-                Garages[vehicle.garage].display_name or Garages[garageId].display_name)
+                Garages[vehicle.garage] and Garages[vehicle.garage].display_name or Garages[garageId].display_name)
         end
         table.insert(elements, {
             label = vehicleLabel,
@@ -238,10 +242,10 @@ function openCreateCategoryMenu(garageId, initData)
         initData.only_grade = selected_grade
         print(minimal_grade, selected_grade)
         if category ~= nil and category.job == initData.job then
-            esx.ShowNotification('Kategorie s tímto názvem již existuje!', 'error')
+            showNotification('Firemní garáž', 'Kategorie s tímto názvem již existuje!', 'error')
             return
         end
-        esx.ShowNotification('Kategorie byla vytvořena!', 'green')
+        showNotification('Firemní garáž', 'Kategorie byla vytvořena!', 'green')
         TriggerServerEvent('garages:createCategory', garageId, initData)
         esx.UI.Menu.CloseAll()
         return
@@ -295,16 +299,16 @@ function openCreateCategoryMenu(garageId, initData)
             end, true, 'create_category')
         elseif action == 'create' then
             if initData.name == nil then
-                esx.ShowNotification('Musíš zadat název kategorie!', 'error')
+                showNotification('Firemní garáž', 'Musíš zadat název kategorie!', 'error')
                 return
             end
             local category = cachedCategories[initData.name]
             --print('^4', json.encode(category), initData.job, '^0')
             if category ~= nil and category.job == initData.job then
-                esx.ShowNotification('Kategorie s tímto názvem již existuje!', 'error')
+                showNotification('Firemní garáž', 'Kategorie s tímto názvem již existuje!', 'error')
                 return
             end
-            esx.ShowNotification('Kategorie byla vytvořena!', 'green')
+            showNotification('Firemní garáž', 'Kategorie byla vytvořena!', 'green')
             TriggerServerEvent('garages:createCategory', garageId, initData)
             esx.UI.Menu.CloseAll()
         end
@@ -412,7 +416,7 @@ function openCategoryEditMenu(category, garageId)
         elements = elements
     }, function(data, menu)
         if data.current.action == 'delete' then
-            esx.ShowNotification(
+            showNotification('Firemní garáž',
                 'Kategorie ' .. category.name .. ' byla smazána a vozidla přesunuty do hlavní kategorie.', 'success')
             TriggerServerEvent('garages:deleteCategory', category.name)
             esx.UI.Menu.CloseAll()
@@ -450,13 +454,17 @@ function openVehicleEditMenu(vehicle, garageId)
                 if category == nil then
                     categoryLabel = 'Bez kategorie'
                 end
-                esx.ShowNotification('Vozidlo ' .. vehicle.plate .. ' přesunuto do kategorie ' .. categoryLabel .. '.',
-                    'green')
+                showNotification(
+                    'Firemní garáž',
+                    'Vozidlo ' .. vehicle.plate .. ' přesunuto do kategorie ' .. categoryLabel .. '.',
+                    'success'
+                )
                 TriggerServerEvent('garages:moveVehicle', vehicle.plate, category)
                 esx.UI.Menu.CloseAll()
             end, 'edit_vehicle')
         elseif data.current.action == 'owner' then
-            esx.ShowNotification('Vozidlo ' .. vehicle.plate .. ' převedeno do osobní garáže.', 'green')
+            showNotification('Firemní garáž', 'Vozidlo ' .. vehicle.plate .. ' převedeno do osobní garáže.',
+                'success')
             TriggerServerEvent('garages:moveToPersonal', vehicle)
             esx.UI.Menu.CloseAll()
         end

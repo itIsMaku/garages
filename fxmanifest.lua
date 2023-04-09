@@ -6,8 +6,7 @@ lua54 'yes'
 
 shared_scripts {
     '@ox_lib/init.lua',
-    'configs/sh_impound.lua',
-    'configs/sh_blips.lua',
+    'configs/sh_config.lua'
 }
 
 client_scripts {
@@ -20,7 +19,12 @@ client_scripts {
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
+    'configs/sv_import.lua',
     'server/sv_commands.lua',
     'server/sv_main.lua',
     'server/sv_impound.lua'
+}
+
+dependency {
+    'ox_lib'
 }

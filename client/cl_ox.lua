@@ -58,7 +58,15 @@ if ox_target then
             label = 'Odtáhnout vozidlo',
             canInteract = function(entity, distance, coords, name, bone)
                 return isJobImpoundManagement(esx.PlayerData.job.name)
-            end
+            end,
+            num = 1
+        },
+        {
+            name = 'garages:lockVehicle',
+            event = 'garages:lockVehicle',
+            icon = "fa-solid fa-key",
+            label = "Zamknout/Odemknout",
+            num = 2
         },
     }
 
@@ -69,6 +77,6 @@ AddEventHandler('onClientResourceStop', function(resourceName)
     if GetCurrentResourceName() ~= resourceName then return end
 
     if ox_target then
-        exports.ox_target:removeGlobalVehicle({ 'garages:impoundVehicle' })
+        exports.ox_target:removeGlobalVehicle({ 'garages:impoundVehicle', 'garages:lockVehicle' })
     end
 end)

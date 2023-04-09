@@ -5,6 +5,7 @@ cachedCategories = {}
 cachedVehicles = {}
 cachedJobGrades = {}
 garageDebug = false
+keys = {}
 
 Citizen.CreateThread(function()
     TriggerServerEvent('garages:load')
@@ -42,7 +43,7 @@ end)
 function addGarage(garage)
     if garage.blip then
         local blipDetails = GarageTypesBlips[garage.type]
-        print(json.encode(blipDetails))
+        --print(json.encode(blipDetails))
         local blip = AddBlipForCoord(garage.coords)
         SetBlipSprite(blip, blipDetails.sprite)
         SetBlipDisplay(blip, blipDetails.display)
@@ -50,7 +51,7 @@ function addGarage(garage)
         SetBlipColour(blip, blipDetails.colour)
         SetBlipAsShortRange(blip, blipDetails.short_range)
         BeginTextCommandSetBlipName('STRING')
-        AddTextComponentString('<font face="OpenSans-SemiBold">' .. blipDetails.title .. '</font>')
+        AddTextComponentString('<font face="Fire Sans">' .. blipDetails.title .. '</font>')
         EndTextCommandSetBlipName(blip)
     end
     TriggerEvent('polyZone:createZone', 'garage_' .. garage.id, 'box', {
@@ -84,7 +85,7 @@ AddEventHandler('polyZone:enteredZone', function(zoneName, point)
             --     zone_radius.width, 5.0, rgb.r, rgb.g, rgb.b, 100)
             DrawMarker(21, coords.x, coords.y, coords.z, 0, 0, 0, 0.0, rotate, 0.0, 0.8, 0.7, 0.8, rgb.r, rgb.g, rgb.b,
                 100, false, false, 2, true)
-            esx.ShowHelpNotification('~INPUT_CONTEXT~ <font face="OpenSans-SemiBold">Garáže</font>')
+            esx.ShowHelpNotification('~INPUT_CONTEXT~ <font face="Fire Sans">Garáže</font>')
             if IsControlJustPressed(0, 38) then
                 requestGarageMenu(garageId)
             end
@@ -127,21 +128,24 @@ RegisterNetEvent('garages:receiveVehicleDetails',
             categories[category.name].vehicles = {}
         end
         cachedCategories = categories
+        local elements = {
+            {
+                label = 'Osobní vozidla',
+                description = 'Veškerá vozidla, která jste si koupili',
+                action = 'personal'
+            },
+        }
+        if esx.PlayerData.job.name ~= 'unemployed' then
+            table.insert(elements, {
+                label = 'Firemní vozidla',
+                description = 'Veškerá vozidla, které vlastní tvá firma',
+                action = 'job'
+            })
+        end
         esx.UI.Menu.Open('default', 'garages', 'select_type', {
             title = Garages[garageId].display_name,
             align = 'top-right',
-            elements = {
-                {
-                    label = 'Osobní vozidla',
-                    description = 'Veškerá vozidla, která jste si koupili',
-                    action = 'personal'
-                },
-                {
-                    label = 'Firemní vozidla',
-                    description = 'Veškerá vozidla, které vlastní tvá firma',
-                    action = 'job'
-                }
-            }
+            elements = elements
         }, function(data, menu)
             if data.current.action == 'personal' then
                 openGarageMenu(vehicles, nil, false, garageId, {})
@@ -154,7 +158,7 @@ RegisterNetEvent('garages:receiveVehicleDetails',
     end
 )
 
-function formatVehicleData(vehicle)
+function formatVehicleData(vehicle, impoundName)
     local vehicleName = GetDisplayNameFromVehicleModel(vehicle.model)
 
     local status = 'Mimo garáž'
@@ -183,7 +187,11 @@ function formatVehicleData(vehicle)
     --print(vehicle.impound)
     --print(vehicle.stored)
     if vehicle.impound then
-        status = 'Odtahovka'
+        if not impoundName then
+            status = 'Odtahovka'
+        else
+            status = 'Odtahovka - ' .. impoundName
+        end
         color = 'orange'
     end
     local vehicleLabel = string.format(
@@ -201,7 +209,16 @@ end
 
 function selectVehicle(vehicle, garageId, parent)
     if vehicle.impound then
-        esx.ShowNotification('Vozidlo je na odtahovce.')
+        showNotification('Garáž', 'Vozidlo je na odtahovce.', 'error')
+        return
+    end
+    TriggerServerEvent('garages:requestOutside', vehicle, garageId, parent)
+end
+
+RegisterNetEvent('garages:receiveOutside', function(vehicle, garageId, parent, vehicleOutside)
+    if vehicleOutside then
+        SetNewWaypoint(vehicleOutside.x, vehicleOutside.y)
+        showNotification('Garáž', 'Vozidlo je mimo garáž. Nastavuji GPS...', 'inform')
         return
     end
     if vehicle.stored then
@@ -213,12 +230,13 @@ function selectVehicle(vehicle, garageId, parent)
             spawnVehicle(vehicle, garageId)
             return
         end
-        spawnForCash('Převést vozidlo do garáže za 500$?', vehicle.plate, garageId, 500, parent)
+        spawnForCash('Převést vozidlo do garáže za ' .. GarageToGaragePrice .. '$?', vehicle.plate, garageId,
+            GarageToGaragePrice, parent)
         return
     end
-    spawnForCash('Převést vozidlo za 700$?', vehicle.plate, garageId, 700, parent)
+    spawnForCash('Převést vozidlo za ' .. SpawnGaragePrice .. '$?', vehicle.plate, garageId, SpawnGaragePrice, parent)
     return
-end
+end)
 
 function spawnForCash(title, plate, garageId, amount, parent)
     openConfirmationMenu(title, function(state)
@@ -237,8 +255,9 @@ function storeVehicle(garageId)
     local vehicle = GetVehiclePedIsIn(PlayerPedId())
     local plate = GetVehicleNumberPlateText(vehicle)
     plate = string.gsub(plate, '%s+', '')
-    TriggerServerEvent('garages:storeVehicle', garageId, plate, NetworkGetNetworkIdFromEntity(vehicle),
-        esx.Game.GetVehicleProperties(vehicle))
+    local vehicleData = esx.Game.GetVehicleProperties(vehicle)
+    vehicleData.modelArchetypeName = GetEntityArchetypeName(vehicle)
+    TriggerServerEvent('garages:storeVehicle', garageId, plate, NetworkGetNetworkIdFromEntity(vehicle), vehicleData)
 end
 
 RegisterNetEvent('garages:spawnVehicle', function(vehicle, garageId)
@@ -247,8 +266,9 @@ RegisterNetEvent('garages:spawnVehicle', function(vehicle, garageId)
     local playerPed = PlayerPedId()
     local distance = #(GetEntityCoords(playerPed) - vector3(coords.x, coords.y, coords.z))
     if distance < garage.zone_radius.width or distance < garage.zone_radius.height then
+        keys[vehicle.plate] = true
         esx.Game.SpawnVehicle(vehicle.model, vector3(coords.x, coords.y, coords.z), coords.w, function(createdVehicle)
-            esx.Game.SetVehicleProperties(createdVehicle, json.decode(vehicle.data))
+            esx.Game.SetVehicleProperties(createdVehicle, vehicle.data)
             SetVehicleNumberPlateText(createdVehicle, vehicle.plate)
             TaskWarpPedIntoVehicle(playerPed, createdVehicle, -1)
         end)
@@ -268,6 +288,75 @@ RegisterNetEvent('garages:deleteGarage', function(garage)
     TriggerEvent('polyZone:removeZone', 'garage_' .. garage)
     Garages[garage] = nil
 end)
+
+function showNotification(title, message, type)
+    print(title, message, type)
+    lib.notify({
+        title = title,
+        description = message,
+        type = type
+    })
+end
+
+function getPlayersInVehicle(vehicle) -- funkce z cd_garage, th codesign :P
+    local temp_table = {}
+    local vehicle_coords = GetEntityCoords(vehicle)
+    for c, d in pairs(GetActivePlayers()) do
+        local targetped = GetPlayerPed(d)
+        local dist = #(vehicle_coords - GetEntityCoords(vehicle))
+        if dist < 10 then
+            local ped_vehicle = GetVehiclePedIsIn(targetped)
+            if ped_vehicle == vehicle then
+                table.insert(temp_table, GetPlayerServerId(d))
+            end
+        end
+    end
+    return temp_table
+end
+
+function isVehicleEmpty(entity)
+    return GetVehicleNumberOfPassengers(entity) == 0 and IsVehicleSeatFree(entity, -1)
+end
+
+RegisterNetEvent('garages:showNotification', showNotification)
+
+AddEventHandler('garages:lockVehicle', function(data)
+    local entity = data.entity
+    local plate = GetVehicleNumberPlateText(entity)
+    plate = string.gsub(plate, '%s+', '')
+    if not keys[plate] then
+        return
+    end
+    local locked = GetVehicleDoorLockStatus(entity)
+    local num = locked == 2 and 1 or 2
+    SetVehicleDoorsLocked(entity, num)
+    SetVehicleDoorsLockedForAllPlayers(entity, num == 2)
+    print('locking', num)
+    print(locked)
+
+    local vehiclePlayers = nil
+    if not isVehicleEmpty(entity) then
+        vehiclePlayers = getPlayersInVehicle(entity)
+    end
+    TriggerServerEvent('garages:syncLocks', NetworkGetNetworkIdFromEntity(entity), num, vehiclePlayers)
+end)
+
+RegisterNetEvent('garages:syncLocks', function(entity, num)
+    local vehicle = NetworkGetEntityFromNetworkId(entity)
+    SetVehicleDoorsLocked(vehicle, num)
+    SetVehicleDoorsLockedForAllPlayers(vehicle, num == 2)
+end)
+
+RegisterCommand('lockVehicle', function(source, args, raw)
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped) then
+        return
+    end
+    local vehicle = GetVehiclePedIsIn(ped)
+    TriggerEvent('garages:lockVehicle', { entity = vehicle })
+end)
+
+RegisterKeyMapping('lockVehicle', '<font face="Fire Sans">Zamknout vozidlo</font>', 'keyboard', 'PAGEUP')
 
 --[[
 

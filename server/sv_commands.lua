@@ -139,7 +139,7 @@ RegisterCommand('giveVehicle', function(source, args, raw)
     local vehType = args[5] == 'nil' and 'car' or args[5]
     local esxTarget = esx.GetPlayerFromId(target)
     MySQL.Async.execute(
-        'INSERT INTO users_vehicles (plate, owner, model, data, garage, stored, impound, type, job) VALUES (@plate, @owner, @model, @data, @garage, @stored, @impound, @type, @job)',
+        'INSERT INTO owned_vehicles (plate, owner, model, vehicle, garage, stored, impound, type, job) VALUES (@plate, @owner, @model, @data, @garage, @stored, @impound, @type, @job)',
         {
             ['@plate'] = plate,
             ['@owner'] = esxTarget.identifier,
@@ -167,14 +167,14 @@ RegisterCommand('giveVehicle', function(source, args, raw)
         end)
 end)
 
-RegisterCommand('vehicleToSociety', function(source, args)
+RegisterCommand('firma', function(source, args)
     if source == 0 then
         return
     end
 
     local vehicle = GetVehiclePedIsIn(GetPlayerPed(source))
     if vehicle == nil or not DoesEntityExist(vehicle) then
-        TriggerClientEvent('chat:addMessage', source, 'Garáže ^7» ^1Musíš být ve vozidle^0')
+        showNotification('Garáže', 'Musíš být ve vozidle', 'error')
         return
     end
     local player = esx.GetPlayerFromId(source)
@@ -183,19 +183,19 @@ RegisterCommand('vehicleToSociety', function(source, args)
     local job = player.job.name
     local minimalManagementGrade = getMinimalManagementGrade(job)
     if minimalManagementGrade == nil then -- k tomuhle by nikdy nemělo dojít, ale radši to tu nechám pro jistotu :D
-        TriggerClientEvent('chat:addMessage', source,
-            'Garáže ^7» ^1Tento job nemá garáž nebo nastavenou pozici pro správu^0')
+        showNotification('Garáže', 'Tento job nemá garáž nebo nastavenou pozici pro správu.', 'error')
         return
     end
     --print('minimalManagementGrade: ' .. minimalManagementGrade)
     --print('player.job.grade: ' .. player.job.grade)
     if player.job.grade < minimalManagementGrade then
-        TriggerClientEvent('chat:addMessage', source,
-            'Garáže ^7» ^1Pro přepsání vozidla na firmu musíš mít povolené spravování firemní garáže na tvé pozici^0')
+        showNotification('Garáže',
+            'Pro přepsání vozidla na firmu musíš mít povolené spravování firemní garáže na tvé pozici',
+            'error')
         return
     end
     local row = MySQL.Sync.execute(
-        'UPDATE users_vehicles SET job = @job WHERE plate = @plate',
+        'UPDATE owned_vehicles SET job = @job WHERE plate = @plate',
         {
             ['@job'] = job,
             ['@plate'] = plate
@@ -203,15 +203,12 @@ RegisterCommand('vehicleToSociety', function(source, args)
     )
     if row then
         if row < 1 then
-            TriggerClientEvent('chat:addMessage', source,
-                'Garáže ^7» ^1Toto vozidlo není tvé^0')
+            showNotification('Garáže', 'Toto vozidlo není tvé.', 'error')
             return
         else
-            TriggerClientEvent('chat:addMessage', source,
-                'Garáže ^7» ^2Vozidlo ^0' .. plate .. '^2 bylo přepsáno na firmu^0')
+            showNotification('Garáže', 'Vozidlo ' .. plate .. ' bylo přepsáno na firmu.', 'success')
         end
     else
-        TriggerClientEvent('chat:addMessage', source,
-            'Garáže ^7» ^1Nastala chyba při přepisování vozidla na firmu^0')
+        showNotification('Garáže', 'Nastala chyba při přepisování vozidla na firmu.', 'error')
     end
 end)

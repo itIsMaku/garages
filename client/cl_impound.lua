@@ -6,11 +6,11 @@ Citizen.CreateThread(function()
             local blip = AddBlipForCoord(v.coords)
             SetBlipSprite(blip, 67)
             SetBlipDisplay(blip, 4)
-            SetBlipScale(blip, 0.8)
+            SetBlipScale(blip, 0.65)
             SetBlipColour(blip, 4)
             SetBlipAsShortRange(blip, true)
             BeginTextCommandSetBlipName('STRING')
-            AddTextComponentString('<font face="OpenSans-SemiBold">Odtahovka</font>')
+            AddTextComponentString('<font face="Fire Sans">Odtahovka</font>')
             EndTextCommandSetBlipName(blip)
         end
 
@@ -35,7 +35,7 @@ AddEventHandler('polyZone:enteredZone', function(zoneName)
             Citizen.Wait(0)
             local coords = Impounds[impound].coords
             local zone_radius = Impounds[impound].zone_radius
-            esx.ShowHelpNotification('~INPUT_CONTEXT~ <font face="OpenSans-SemiBold">Odtahovka</font>')
+            esx.ShowHelpNotification('~INPUT_CONTEXT~ <font face="Fire Sans">Odtahovka</font>')
             DrawMarker(21, coords.x, coords.y, coords.z, 0, 0, 0, 0.0, 0.0, 0.0, 0.8, 0.7, 0.8, 255, 255, 0,
                 100, false, false, 2, true)
             -- DrawMarker(43, coords.x, coords.y, coords.z - 3.0, 0, 0, 0, 0, 0, coords.w, zone_radius.height,
@@ -128,13 +128,17 @@ function openImpoundMenu(vehicles, job, other)
         local vehicle = vehicles[plate]
         local impoundData = vehicle.impound_data
         if impoundData.impound ~= nil and impoundData.impound ~= currentImpound then
-            esx.ShowNotification('Toto vozidlo je na odtahovce v ' .. Impounds[impoundData.impound].display_name .. '.',
+            showNotification('Odtahovka',
+                'Toto vozidlo je na odtahovce v ' .. Impounds[impoundData.impound].display_name .. '.',
                 'error')
             return
         end
         if impoundData.authority and not impoundData.self and isJobImpoundManagement(impoundData.authority.job) and not isJobImpoundManagement(esx.PlayerData.job.name) then
-            esx.ShowNotification('Toto vozidlo ti může vytáhnout pouze policista.', 'error')
+            showNotification('Odtahovka', 'Toto vozidlo ti může vytáhnout pouze policista.', 'error')
             return
+        end
+        if impoundData.impound == nil then
+            impoundData.impound = currentImpound
         end
         TriggerServerEvent('garages:payImpound', plate, impoundData)
     end, function(data, menu)
